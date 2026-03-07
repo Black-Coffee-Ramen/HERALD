@@ -1,0 +1,48 @@
+# Data and outputs (never commit)
+data/
+outputs/
+
+# Models (large binary files — track separately with Git LFS if needed)
+models/*.joblib
+models/*.pkl
+*.pkl
+
+# Evidence directories
+evidences_temp/
+final_evidence/
+evidence/
+
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Logs
+*.log
+docker_build.log
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Test coverage
+.coverage
+htmlcov/

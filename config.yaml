@@ -1,0 +1,44 @@
+thresholds:
+  phishing: 0.571  # Operational threshold (Precision 0.90, Recall 0.82)
+  suspected: 0.35  # Threshold for "Suspected" label and trigger for fallback
+# Note: Threshold lowered from 0.845 to 0.571 based on error analysis and recall targets.
+feature_columns:
+- domain_length
+- digit_ratio
+- dot_ratio
+- num_hyphens
+- hyphen_ratio
+- num_special_chars
+- special_char_ratio
+- subdomain_count
+- brand_keyword_position
+- registered_domain_length
+- has_cse_keyword_in_subdomain
+- has_ip
+- has_repeated_digits
+- is_common_tld
+- tld_length
+- entropy
+- has_login
+- has_signin
+- has_secure
+- has_account
+- has_verify
+- has_update
+- has_support
+- has_banking
+- has_paypal
+- has_auth
+- has_security
+- has_confirm
+- has_https
+
+social:
+  telegram_channels:
+    - durov
+  scrape_interval_minutes: 30
+  max_posts_per_scrape: 50
+
+whitelist:
+  domains:
+    - accounts.mgovcloud.in
