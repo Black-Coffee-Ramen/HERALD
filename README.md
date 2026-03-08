@@ -90,7 +90,7 @@ Every detected domain generates a report with:
 
 ```bash
 # Clone
-git clone https://github.com/yourusername/HERALD
+git clone https://github.com/Black-Coffee-Ramen/HERALD
 cd HERALD
 
 # Start everything (recommended)
@@ -341,5 +341,6 @@ Built by Athiyo — IIIT Delhi
 athiyo22118@iiitd.ac.in
 
 ---
+
 
 *Precision 0.977 on live PhishTank data · Zero third-party APIs · Fully on-premises*
