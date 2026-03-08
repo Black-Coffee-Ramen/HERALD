@@ -1,4 +1,4 @@
-# HERALD — AI-Powered Phishing Domain Detection for Critical Infrastructure
+# HERALD (Formerly Matrix) — AI-Powered Phishing Domain Detection for Critical Infrastructure
 
 > **97.7% precision on live external data. Zero third-party threat intel APIs. Fully on-premises.**
 
