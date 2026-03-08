@@ -5,6 +5,12 @@ import time
 import os
 import sys
 
+from herald.predict_with_fallback import PhishingPredictorV3
+from herald.db.models import DomainScan, DATABASE_URL
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine
+from datetime import datetime
+
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(name)s %(asctime)s - %(message)s')
@@ -18,18 +24,59 @@ except redis.ConnectionError:
     logging.warning("Could not connect to Redis from Queue Worker.")
     redis_client = None
 
+def clear_failed_jobs():
+    if redis_client:
+        count = redis_client.llen("failed_jobs")
+        redis_client.delete("failed_jobs")
+        logging.info(f"Cleared {count} failed jobs from dead letter queue")
+
+# Initialize DB and predictor at module level (outside the function)
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+predictor = PhishingPredictorV3()
+
 def process_domain(domain_data):
-    # This is where we would call the Enhanced Phishing Pipeline
-    # For now, we simulate processing that might fail
     domain = domain_data.get('domain')
+    target_cse = domain_data.get('target_cse', 'Unknown')
+    source = domain_data.get('source', 'manual')
+    
     logging.info(f"Processing domain: {domain}")
     
-    # Simulate a failure condition randomly or intentionally based on domain name
-    if "fail" in domain.lower():
-        raise Exception(f"Simulated failure for {domain}")
+    # Run ML prediction
+    result = predictor.predict(domain)
     
-    # Success path
-    logging.info(f"Successfully processed {domain}")
+    label = result.get('status', 'Unknown')
+    confidence = float(result.get('ml_confidence', 0.0))
+    
+    # Save to PostgreSQL
+    session = SessionLocal()
+    try:
+        # Check if domain already exists
+        existing = session.query(DomainScan).filter_by(domain=domain).first()
+        if existing:
+            existing.label = label
+            existing.confidence = confidence
+            existing.target_cse = target_cse
+            existing.scan_date = datetime.utcnow()
+            existing.source = source
+        else:
+            scan = DomainScan(
+                domain=domain,
+                label=label,
+                confidence=confidence,
+                target_cse=target_cse,
+                source=source,
+                scan_date=datetime.utcnow()
+            )
+            session.add(scan)
+        session.commit()
+        logging.info(f"Successfully processed and saved {domain} → {label} ({confidence:.2f})")
+    except Exception as e:
+        session.rollback()
+        logging.error(f"Database save failed for {domain}: {e}")
+        raise
+    finally:
+        session.close()
 
 def start_queue_worker():
     logging.info("Starting Queue Worker to process domain_analysis_queue...")

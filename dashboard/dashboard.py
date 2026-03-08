@@ -31,9 +31,51 @@ check_auth()
 
 st.title("🛡️ Phishing Detection Dashboard")
 
-st.markdown("### Suspected Domains")
+def get_label_color(label):
+    if label == "Phishing":
+        return "🔴 Phishing"
+    elif label == "Suspected":
+        return "🟠 Suspected"
+    elif label == "Clean":
+        return "🟢 Clean"
+    else:
+        return "⚪ Unknown"
+
+col1, col2 = st.columns([0.8, 0.2])
+with col1:
+    st.markdown("### Recent Detections")
+with col2:
+    if st.button("🔄 Refresh Data"):
+        st.rerun()
 
 headers = {"X-API-Token": API_TOKEN}
+
+try:
+    res_det = requests.get(f"{API_URL}/api/detections", headers=headers)
+    if res_det.status_code == 200:
+        det_data = res_det.json()
+        if det_data:
+            st.markdown(f"**{len(det_data)} domains detected recently**")
+            df_det = pd.DataFrame(det_data)
+            df_det['Label'] = df_det['label'].apply(get_label_color)
+            df_det = df_det.rename(columns={
+                'domain': 'Domain',
+                'confidence': 'Confidence',
+                'target_cse': 'Target CSE',
+                'scan_date': 'Detected At'
+            })
+            st.dataframe(df_det[['Domain', 'Label', 'Confidence', 'Target CSE', 'Detected At']], use_container_width=True)
+        else:
+            st.info("No recent detections found.")
+    else:
+        st.error(f"Failed to fetch detections. API Status: {res_det.status_code}")
+except Exception as e:
+    st.error(f"Error connecting to API: {e}")
+
+st.markdown("---")
+
+st.markdown("### Suspected Domains")
+
 
 try:
     response = requests.get(f"{API_URL}/api/suspected", headers=headers)

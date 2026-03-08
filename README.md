@@ -151,29 +151,39 @@ whitelist:
 ## Project Structure
 
 ```
-├── app/                    # Streamlit dashboard
-├── core/                   # ML ensemble, OCR analyzer, content classifier
+herald/                          # Main package
+├── __init__.py                  # v0.1.0
+├── core/                        # ML ensemble, OCR analyzer, content classifier
 │   ├── content_classifier.py
 │   ├── domain_analyzer.py
 │   ├── cv_ocr_analyzer.py
 │   └── homoglyph_generator.py
-├── crawler/                # Social media & web crawlers
-├── ml/                     # Model training & inference
-├── monitor/                # APScheduler for suspected domain re-checks
-├── src/
-│   ├── features/           # Lexical, WHOIS, SSL, DNS feature extractors
-│   ├── ingestion/          # Certstream monitor, new domain feeds
-│   ├── api/                # FastAPI REST layer
-│   └── db/                 # SQLAlchemy models (PostgreSQL)
-├── models/                 # Trained ensemble_v3.joblib
-├── scripts/                # Error analysis, retraining pipelines
-├── utils/                  # Screenshot, PDF conversion, logging
-├── run_detection.py        # Main script for batch detection
-├── train_model.py          # Model training pipeline
-├── generate_submission.py  # Generates structured submission output
-├── docker-compose.yml
-├── config.yaml
-└── requirements.txt
+├── features/                    # Lexical, WHOIS, SSL, DNS feature extractors
+├── ingestion/                   # Certstream, domain feeds, Telegram scraper
+│   ├── certstream_monitor.py
+│   ├── new_domains_monitor.py
+│   ├── social_monitor.py
+│   └── tunnel_monitor.py
+├── monitoring/                  # APScheduler for suspected domain re-checks
+│   └── run_workers.py
+├── api/                         # FastAPI REST layer
+│   └── main.py
+├── db/                          # SQLAlchemy models (PostgreSQL)
+│   └── models.py
+├── predict.py                   # Batch prediction
+├── predict_with_fallback.py     # ML + OCR fallback predictor
+└── utils/                       # Screenshot, PDF, logging helpers
+ml/                              # Model training & retraining scripts
+dashboard/                       # Streamlit dashboard
+docker/                          # Dockerfile + docker-compose.yml
+models/                          # Trained ensemble_v3.joblib
+scripts/                         # Error analysis, ablation, evaluation
+tests/                           # Test stubs
+config.yaml
+setup.py
+requirements.txt
+.env.example
+.gitignore
 ```
 
 ---
@@ -229,7 +239,7 @@ Full interactive docs at `http://localhost:8000/docs` when running.
 
 ## Adding Your Own CSE Watchlist
 
-Edit `src/features/lexical_features.py`:
+Edit `herald/features/lexical_features.py`:
 
 ```python
 CSE_KEYWORDS = [
@@ -242,7 +252,16 @@ CSE_KEYWORDS = [
 
 Then retrain:
 ```bash
-python train_model.py --training_data data/training/
+python ml/retrain_v3.py --training_data data/training/
+```
+
+To add Telegram channels to monitor, edit `config.yaml`:
+```yaml
+social:
+  telegram_channels:
+    - your_channel_name    # public channel username (no @)
+  scrape_interval_minutes: 30
+  max_posts_per_scrape: 50
 ```
 
 ---
@@ -303,15 +322,16 @@ MIT License — use freely, attribution appreciated.
 
 ## Declared External Dependencies
 
-In the spirit of transparency (and per NCIIPC evaluation requirements), all external calls made by this system:
+All external network calls made by HERALD:
 
 - `python-whois` — WHOIS lookups via public WHOIS servers
 - `Selenium` + local ChromeDriver — headless browser for screenshot capture
-- `certstream` — WebSocket connection to `wss://certstream.calidog.io` (CT logs)
+- `certstream` — WebSocket to `wss://certstream.calidog.io` (CT logs)
 - `crt.sh` — Fallback HTTP polling for certificate transparency data
+- `requests` + `BeautifulSoup` — Telegram public web scraping (`t.me/s/channel`)
 - Public DNS resolution via Python `socket` / `aiodns`
 
-**No commercial threat intelligence APIs are used. No VirusTotal, Shodan, or external phishing detection services.**
+**No commercial threat intelligence APIs. No VirusTotal, Shodan, or external phishing detection services.**
 
 ---
 
@@ -319,10 +339,6 @@ In the spirit of transparency (and per NCIIPC evaluation requirements), all exte
 
 Built by Athiyo — IIIT Delhi  
 athiyo22118@iiitd.ac.in
-
----
-
-Built as part of the NCIIPC AI Grand Challenge (Problem Statement 02). The problem specification provided by NCIIPC shaped the architecture and evaluation methodology.
 
 ---
 

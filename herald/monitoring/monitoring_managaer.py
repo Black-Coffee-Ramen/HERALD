@@ -1,4 +1,4 @@
-﻿# src/monitoring/monitor_manager.py
+# herald/monitoring/monitor_manager.py
 import schedule
 import time
 from datetime import datetime, timedelta

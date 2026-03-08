@@ -9,10 +9,17 @@ def load_cse_reference():
     Load official CSE domains dataset.
     Returns a dict: {domain: organisation_name}
     """
+    ref_path = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'cse_domains.txt')
     if not os.path.exists(ref_path):
-        raise FileNotFoundError(f"Reference dataset not found: {ref_path}")
+        print(f"Warning: Reference dataset not found: {ref_path}. Using empty dataset.")
+        return {}, pd.DataFrame(columns=['Organisation Name', 'Whitelisted Domains'])
     
-    df = pd.read_excel(ref_path)
+    try:
+        df = pd.read_excel(ref_path)
+    except Exception as e:
+        print(f"Warning: Failed to load excel reference {ref_path}: {e}")
+        return {}, pd.DataFrame(columns=['Organisation Name', 'Whitelisted Domains'])
+        
     # Forward-fill missing organisation names
     df['Organisation Name'] = df['Organisation Name'].ffill()
     df = df.dropna(subset=['Whitelisted Domains'])

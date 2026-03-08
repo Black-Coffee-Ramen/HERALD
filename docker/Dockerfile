@@ -9,58 +9,41 @@ RUN apt-get update && apt-get install -y \
     unzip \
     wget \
     gnupg \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Chrome (Modern Method)
-RUN curl -fsSL https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list \
+# Install Google Chrome
+RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
+    | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] \
+    http://dl.google.com/linux/chrome/deb/ stable main" \
+    > /etc/apt/sources.list.d/google-chrome.list \
     && apt-get update \
     && apt-get install -y google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# Install ChromeDriver using Chrome for Testing (modern versions 115+)
-RUN apt-get update && apt-get install -y jq \
-    && CHROME_VERSION=$(google-chrome --version | cut -d ' ' -f 3 | cut -d '.' -f 1-3) \
-    && CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" | jq -r ".channels.Stable.downloads.chromedriver[] | select(.platform == \"linux64\") | .url") \
-    && wget -O /tmp/chromedriver.zip "$CHROMEDRIVER_URL" \
-    && unzip /tmp/chromedriver.zip -d /tmp/ \
-    && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/ \
+# Install ChromeDriver — pinned to stable, no fragile version-matching
+RUN CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json" \
+    | jq -r '.channels.Stable.downloads.chromedriver[] | select(.platform=="linux64") | .url') \
+    && wget -q -O /tmp/chromedriver.zip "$CHROMEDRIVER_URL" \
+    && unzip -q /tmp/chromedriver.zip -d /tmp/ \
+    && mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/chromedriver \
     && chmod +x /usr/local/bin/chromedriver \
-    && rm -rf /tmp/chromedriver* /var/lib/apt/lists/*
+    && rm -rf /tmp/chromedriver*
 
 WORKDIR /app
 
-# Copy requirements first
+# Copy and install requirements first (layer caching — only rebuilds if requirements change)
 COPY requirements.txt .
-
-# Install dependencies - Optimization: Use CPU-only versions for ML libraries
-# This significantly reduces image size (from GBs to MBs)
-RUN pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu \
-    -r requirements.txt
-
-# Install Phase 5 / Extension dependencies
-# Ensuring opencv-python-headless is used to avoid GUI dependencies
-RUN pip install --no-cache-dir \
-    certstream \
-    Levenshtein \
-    redis \
-    APScheduler \
-    sqlalchemy \
-    psycopg2-binary \
-    fastapi \
-    uvicorn \
-    aiodns \
-    python-dotenv \
-    fuzzywuzzy \
-    easyocr \
-    opencv-python-headless
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
-# Environment variables
+# Environment
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV CHROME_BIN=/usr/bin/google-chrome
+ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
 
-# Expose ports (for documentation)
 EXPOSE 8000 8501

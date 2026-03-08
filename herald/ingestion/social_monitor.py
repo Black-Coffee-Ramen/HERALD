@@ -1,4 +1,4 @@
-﻿import time
+import time
 import re
 import random
 import logging
@@ -151,7 +151,7 @@ class SocialMonitor:
             # Rate limiting
             time.sleep(random.uniform(2.0, 3.5))
 
-def start_social_monitor():
+def run_social_monitor():
     monitor = SocialMonitor()
     if not monitor.channels:
         logger.warning("No Telegram channels configured. Social Monitor exiting.")
@@ -168,4 +168,4 @@ def start_social_monitor():
         time.sleep(sleep_secs)
 
 if __name__ == "__main__":
-    start_social_monitor()
+    run_social_monitor()

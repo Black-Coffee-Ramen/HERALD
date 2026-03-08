@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, Security
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, Security
 from fastapi.security import APIKeyHeader
 from pydantic import BaseModel
 import redis
@@ -73,6 +73,27 @@ def get_suspected_domains(token: str = Depends(verify_token)):
                 "scan_date": r.scan_date,
                 "confidence": r.confidence,
                 "is_live": r.is_live
+            } for r in results
+        ]
+    finally:
+        session.close()
+
+@app.get("/api/detections")
+def get_recent_detections(token: str = Depends(verify_token)):
+    """
+    Retrieve the 50 most recent detections from the database.
+    """
+    session = SessionLocal()
+    try:
+        results = session.query(DomainScan).order_by(DomainScan.scan_date.desc()).limit(50).all()
+        return [
+            {
+                "domain": r.domain,
+                "label": r.label,
+                "confidence": r.confidence,
+                "target_cse": r.target_cse,
+                "source": r.source,
+                "scan_date": r.scan_date
             } for r in results
         ]
     finally:

@@ -1,10 +1,10 @@
-﻿import threading
+import threading
 import time
 import logging
 
 from herald.ingestion.certstream_monitor import start_certstream
 from herald.ingestion.new_domains_monitor import start_polling
-from herald.ingestion.social_monitor import start_social_monitor
+from herald.ingestion.social_monitor import run_social_monitor as start_social_monitor
 from herald.monitoring.scheduler import scheduler, check_suspected_domains
 from herald.monitoring.queue_worker import start_queue_worker
 
@@ -33,7 +33,7 @@ def run_social_monitor():
     logging.info("Starting Social Monitor thread...")
     start_social_monitor()
 
-if __name__ == "__main__":
+def start_all_workers():
     # Wait a few seconds for Redis/DB to spin up in Docker before starting loops
     time.sleep(5)
     logging.info("Initializing Workers for Phishing Detection Platform...")
@@ -56,3 +56,6 @@ if __name__ == "__main__":
             time.sleep(1)
     except KeyboardInterrupt:
         logging.info("Shutting down workers...")
+
+if __name__ == "__main__":
+    start_all_workers()

@@ -1,0 +1,12 @@
+.venv
+venv
+__pycache__
+*.pyc
+.git
+data/
+evidence/
+evidences_temp/
+outputs/
+models/*.joblib
+*.pdf
+.env

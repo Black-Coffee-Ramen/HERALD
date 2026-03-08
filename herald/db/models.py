@@ -11,6 +11,7 @@ class DomainScan(Base):
     id = Column(Integer, primary_key=True)
     domain = Column(String, index=True)
     target_cse = Column(String)
+    source = Column(String)
     scan_date = Column(DateTime, default=datetime.utcnow)
     label = Column(String)  # 'Suspected', 'Phishing', 'Legitimate'
     confidence = Column(Float)

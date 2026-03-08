@@ -6,7 +6,11 @@ import time
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
-import easyocr
+try:
+    import easyocr
+    EASYOCR_AVAILABLE = True
+except ImportError:
+    EASYOCR_AVAILABLE = False
 import requests
 import numpy as np
 
@@ -17,11 +21,15 @@ class CVOCRAnalyzer:
     def setup_components(self):
         """Setup ChromeDriver and EasyOCR"""
         # Setup EasyOCR
-        try:
-            self.reader = easyocr.Reader(['en'])
-            print("EasyOCR initialized")
-        except Exception as e:
-            print(f"EasyOCR initialization failed: {e}")
+        if EASYOCR_AVAILABLE:
+            try:
+                self.reader = easyocr.Reader(['en'])
+                print("EasyOCR initialized")
+            except Exception as e:
+                print(f"EasyOCR initialization failed: {e}")
+                self.reader = None
+        else:
+            print("EasyOCR not installed. Text extraction from images will be disabled.")
             self.reader = None
         
         # Setup ChromeDriver paths
@@ -127,7 +135,7 @@ class CVOCRAnalyzer:
     
     def extract_text_ocr(self, img_path):
         """Extract text from image using OCR"""
-        if not self.reader:
+        if not EASYOCR_AVAILABLE or not self.reader:
             return []
         try:
             results = self.reader.readtext(img_path)

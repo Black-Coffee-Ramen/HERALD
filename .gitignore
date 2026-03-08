@@ -3,8 +3,6 @@ data/
 outputs/
 
 # Models (large binary files — track separately with Git LFS if needed)
-models/*.joblib
-models/*.pkl
 *.pkl
 
 # Evidence directories
