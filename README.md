@@ -56,6 +56,16 @@ External validation run on March 7, 2026 on completely unseen PhishTank data fil
 
 ---
 
+## Screenshots
+
+### Dashboard — Live Detections
+![HERALD Dashboard](assets/dashboard.png)
+
+### API — Swagger Docs  
+![HERALD API](assets/api.png)
+
+---
+
 ## Features
 
 ### Detection Capabilities
