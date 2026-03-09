@@ -25,9 +25,9 @@ def take_screenshot_as_pdf(url: str, output_path: str, timeout: int = 10000):
             # Save as PDF
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             page.pdf(path=output_path, format='A4')
-            print(f"✅ Saved PDF: {output_path}")
+            print(f"Saved PDF: {output_path}")
         except Exception as e:
-            print(f"❌ Failed to capture {url}: {str(e)}")
+            print(f"Failed to capture {url}: {str(e)}")
             # Create empty PDF or skip
         finally:
             browser.close()

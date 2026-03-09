@@ -79,7 +79,7 @@ class LegitimateServiceDetector:
         # Check against legitimate patterns
         for pattern in self.compiled_patterns:
             if pattern.search(domain_lower):
-                print(f"✅ Legitimate utility detected: {domain} matches {pattern.pattern}")
+                print(f"Legitimate utility detected: {domain} matches {pattern.pattern}")
                 return True
         
         return False
@@ -112,7 +112,7 @@ class LegitimateServiceDetector:
         
         # Long-standing domains are less likely to be phishing
         if domain_age > 365:  # More than 1 year old
-            print(f"🔍 Old domain {domain} ({domain_age} days) - likely legitimate")
+            print(f"Old domain {domain} ({domain_age} days) - likely legitimate")
             return True
         
         # Check for professional TLDs

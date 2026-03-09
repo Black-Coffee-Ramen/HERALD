@@ -22,7 +22,7 @@ class EnhancedVisualSimilarity:
         templates = {}
         
         if not os.path.exists(self.reference_dir):
-            print(f"⚠️  Reference directory not found: {self.reference_dir}")
+            print(f"  Reference directory not found: {self.reference_dir}")
             return templates
         
         # Load template metadata if exists
@@ -79,7 +79,7 @@ class EnhancedVisualSimilarity:
                 img_gray = img.convert('L')
                 return imagehash.phash(img_gray, hash_size=hash_size)
         except Exception as e:
-            print(f"⚠️  Perceptual hash error for {image_path}: {e}")
+            print(f"  Perceptual hash error for {image_path}: {e}")
             return None
     
     def extract_template_features(self, template_path):
@@ -105,7 +105,7 @@ class EnhancedVisualSimilarity:
             
             return features
         except Exception as e:
-            print(f"⚠️  Feature extraction error for {template_path}: {e}")
+            print(f"  Feature extraction error for {template_path}: {e}")
             return {}
     
     def calculate_structural_similarity(self, img1_path, img2_path):
@@ -126,7 +126,7 @@ class EnhancedVisualSimilarity:
             return max(0.0, min(1.0, similarity))
             
         except Exception as e:
-            print(f"⚠️  SSIM calculation error: {e}")
+            print(f"  SSIM calculation error: {e}")
             return 0.0
     
     def calculate_hash_similarity(self, hash1, hash2):
@@ -193,7 +193,7 @@ class EnhancedVisualSimilarity:
             return elements
             
         except Exception as e:
-            print(f"⚠️  CSE element detection error: {e}")
+            print(f"  CSE element detection error: {e}")
             return elements
     
     def detect_brand_logo(self, image, cse_name):
@@ -230,7 +230,7 @@ class EnhancedVisualSimilarity:
             return False
             
         except Exception as e:
-            print(f"⚠️  Layout analysis error: {e}")
+            print(f"  Layout analysis error: {e}")
             return False
     
     def calculate_enhanced_similarity(self, screenshot_path, cse_name):
@@ -250,7 +250,7 @@ class EnhancedVisualSimilarity:
                     best_template = template_info
         
         if not best_template:
-            print(f"🔍 No template found for CSE: {cse_name}")
+            print(f"No template found for CSE: {cse_name}")
             return 0.0, False, {}
         
         template_path = best_template['path']
@@ -298,7 +298,7 @@ class EnhancedVisualSimilarity:
             'template_used': os.path.basename(template_path)
         }
         
-        print(f"🔍 Enhanced similarity for {cse_name}:")
+        print(f"Enhanced similarity for {cse_name}:")
         print(f"   - Overall: {overall_score:.3f}")
         print(f"   - Structural: {ssim_score:.3f}")
         print(f"   - Hash: {hash_similarity:.3f}")

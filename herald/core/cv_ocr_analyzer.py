@@ -114,7 +114,7 @@ class CVOCRAnalyzer:
                     continue
             return None
         except Exception as e:
-            print(f"❌ Screenshot failed: {e}")
+            print(f"Screenshot failed: {e}")
             return None
     
     def perceptual_hash(self, img_path, hash_size=8):

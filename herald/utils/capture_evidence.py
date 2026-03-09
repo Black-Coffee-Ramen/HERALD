@@ -6,7 +6,7 @@ import pandas as pd
 import shutil
 
 def capture_phishing_screenshots():
-    # ✅ USE TOP 500 FILE (NOT full list!)
+    # USE TOP 500 FILE (NOT full list!)
     predictions_csv = "outputs/high_conf_phishing_top500.csv"
     
     if not os.path.exists(predictions_csv):
@@ -17,7 +17,7 @@ def capture_phishing_screenshots():
     
     print(f"📸 Capturing TOP {len(phishing_domains)} HIGH-CONFIDENCE phishing domains...")
 
-    # 🗑️ CLEAR OLD EVIDENCE FOLDER
+    # CLEAR OLD EVIDENCE FOLDER
     if os.path.exists("evidences_temp"):
         shutil.rmtree("evidences_temp")
     os.makedirs("evidences_temp", exist_ok=True)
@@ -35,17 +35,17 @@ def capture_phishing_screenshots():
                 page.goto(url, wait_until='networkidle', timeout=40000)
                 time.sleep(1)  # let page render fully
                 page.screenshot(path=screenshot_path, full_page=True)
-                print(f"✅ Captured: {domain}")
+                print(f"Captured: {domain}")
                 captured += 1
                 browser.close()
         except Exception as e:
-            print(f"❌ Skip {domain}: {str(e)[:50]}")
+            print(f"Skip {domain}: {str(e)[:50]}")
         
         # Progress update every 50
         if i % 50 == 0:
-            print(f"📊 Progress: {i}/{len(phishing_domains)} | Captured: {captured}")
+            print(f"Progress: {i}/{len(phishing_domains)} | Captured: {captured}")
     
-    print(f"\n🎉 FINISHED! Total captured: {captured} / {len(phishing_domains)}")
+    print(f"\nFINISHED! Total captured: {captured} / {len(phishing_domains)}")
 
 if __name__ == "__main__":
     capture_phishing_screenshots()

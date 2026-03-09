@@ -26,7 +26,7 @@ class ContentClassifier:
             self.reader = easyocr.Reader(['en'])
             self.ocr_available = True
         except Exception as e:
-            print(f"⚠️  EasyOCR initialization failed: {e}")
+            print(f"  EasyOCR initialization failed: {e}")
             self.ocr_available = False
         
         # Setup Selenium
@@ -73,7 +73,7 @@ class ContentClassifier:
             return driver
             
         except Exception as e:
-            print(f"❌ ChromeDriver setup failed: {e}")
+            print(f"ChromeDriver setup failed: {e}")
             return False if test_only else None
     
     def is_live_content(self, domain, timeout=10):
@@ -100,7 +100,7 @@ class ContentClassifier:
                     is_non_trivial = (has_substantial_content and 
                                     (has_html_structure or has_meaningful_tags))
                     
-                    print(f"🌐 {domain}: Status {response.status_code}, Length {content_length}, "
+                    print(f"{domain}: Status {response.status_code}, Length {content_length}, "
                           f"Non-trivial: {is_non_trivial}")
                     
                     return (response.status_code == 200 and is_non_trivial, 
@@ -112,7 +112,7 @@ class ContentClassifier:
             return False, 0, 0, ''
             
         except Exception as e:
-            print(f"❌ Error checking live content for {domain}: {e}")
+            print(f"Error checking live content for {domain}: {e}")
             return False, 0, 0, ''
     
     def capture_screenshot(self, domain, driver=None, timeout=15):
@@ -137,7 +137,7 @@ class ContentClassifier:
                     screenshot_path = f"{screenshot_dir}/screenshot.png"
                     
                     driver.save_screenshot(screenshot_path)
-                    print(f"✅ Screenshot captured: {screenshot_path}")
+                    print(f"Screenshot captured: {screenshot_path}")
                     return screenshot_path
                     
                 except TimeoutException:
@@ -148,7 +148,7 @@ class ContentClassifier:
             return None
             
         except Exception as e:
-            print(f"❌ Screenshot failed for {domain}: {e}")
+            print(f"Screenshot failed for {domain}: {e}")
             return None
         finally:
             if not external_driver and driver:
@@ -214,11 +214,11 @@ class ContentClassifier:
             if any(indicator in ' '.join(elements['extracted_text']) for indicator in security_text):
                 elements['security_indicators'] = True
             
-            print(f"🔍 UI Elements detected: { {k: v for k, v in elements.items() if v} }")
+            print(f"UI Elements detected: { {k: v for k, v in elements.items() if v} }")
             return elements
             
         except Exception as e:
-            print(f"⚠️  UI element extraction error: {e}")
+            print(f"  UI element extraction error: {e}")
             return elements
     
     def calculate_visual_similarity(self, screenshot_path, cse_name):
@@ -259,12 +259,12 @@ class ContentClassifier:
             # Combined similarity score
             combined_similarity = (similarity + hash_similarity) / 2
             
-            print(f"🔍 Visual similarity: SSIM={similarity:.3f}, Hash={hash_similarity:.3f}, Combined={combined_similarity:.3f}")
+            print(f"Visual similarity: SSIM={similarity:.3f}, Hash={hash_similarity:.3f}, Combined={combined_similarity:.3f}")
             
             return combined_similarity, combined_similarity > 0.6  # Threshold
             
         except Exception as e:
-            print(f"⚠️  Visual similarity calculation error: {e}")
+            print(f"  Visual similarity calculation error: {e}")
             return 0.0, False
     
     def perceptual_hash(self, img_path, hash_size=8):
@@ -351,7 +351,7 @@ class ContentClassifier:
                                   for term in ['account', 'bank', 'card', 'secure'])
             supporting_count += 1 if has_banking_terms else 0
         
-        print(f"🔍 CSE-like UI: Required={has_required}, Supporting={supporting_count}/3")
+        print(f"CSE-like UI: Required={has_required}, Supporting={supporting_count}/3")
         
         return has_required and supporting_count >= 1
     
@@ -360,14 +360,14 @@ class ContentClassifier:
         Two-stage classification logic
         """
         print(f"\n{'='*60}")
-        print(f"🔍 Two-Stage Classification: {domain}")
-        print(f"📊 Lexical: {lexical_prediction} (confidence: {lexical_confidence:.3f})")
+        print(f"Two-Stage Classification: {domain}")
+        print(f"Lexical: {lexical_prediction} (confidence: {lexical_confidence:.3f})")
         print(f"🎯 Target CSE: {cse_name}")
         print(f"{'='*60}")
         
         # Stage 1: Lexical prediction check
         if lexical_prediction not in ['Phishing', 'Suspected']:
-            print("✅ Stage 1: Lexical prediction is not Phishing/Suspected")
+            print("Stage 1: Lexical prediction is not Phishing/Suspected")
             return 'Legitimate', lexical_confidence, "Lexical prediction clean"
         
         print("🚨 Stage 1: Lexical prediction indicates Phishing/Suspected")
@@ -376,15 +376,15 @@ class ContentClassifier:
         is_live, content_length, status_code, content_type = self.is_live_content(domain)
         
         if not is_live:
-            print("⚠️  Stage 2: No live content detected")
+            print("  Stage 2: No live content detected")
             return 'Suspected', lexical_confidence * 0.7, "No live content"
         
-        print("✅ Stage 2: Live content detected, proceeding to visual analysis")
+        print("Stage 2: Live content detected, proceeding to visual analysis")
         
         # Stage 3: Visual/OCR analysis
         screenshot_path = self.capture_screenshot(domain)
         if not screenshot_path:
-            print("⚠️  Stage 3: Could not capture screenshot")
+            print("  Stage 3: Could not capture screenshot")
             return 'Suspected', lexical_confidence * 0.8, "Screenshot failed"
         
         # Extract UI elements
@@ -406,7 +406,7 @@ class ContentClassifier:
             return 'Phishing', final_confidence, "Visual confirmation"
         else:
             final_confidence = lexical_confidence * 0.9  # Slight reduction
-            print(f"⚠️  Stage 3: Visual analysis inconclusive")
+            print(f"  Stage 3: Visual analysis inconclusive")
             print(f"   - Visual similarity: {visual_similarity:.3f}")
             print(f"   - CSE-like UI: {has_cse_ui}")
             print(f"   - Final confidence: {final_confidence:.3f}")
@@ -431,7 +431,7 @@ class ContentClassifier:
             df_predictions['predicted_label'].isin(['Phishing', 'Suspected'])
         ].head(100)  # Limit for performance
         
-        print(f"🔍 Applying two-stage classification to {len(analysis_domains)} domains...")
+        print(f"Applying two-stage classification to {len(analysis_domains)} domains...")
         
         for idx, row in analysis_domains.iterrows():
             domain = row['domain']
@@ -450,7 +450,7 @@ class ContentClassifier:
                 df_predictions.loc[idx, 'classification_reason'] = reason
                 
             except Exception as e:
-                print(f"❌ Error classifying {domain}: {e}")
+                print(f"Error classifying {domain}: {e}")
                 df_predictions.loc[idx, 'classification_reason'] = f"Error: {str(e)}"
         
         return df_predictions

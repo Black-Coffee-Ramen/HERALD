@@ -4,7 +4,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.common.exceptions import WebDriverException
 
-# ✅ Simplified and corrected dictionary of official CSE sites
+# Simplified and corrected dictionary of official CSE sites
 CSE_SITES = {
     "NIC": "https://nic.gov.in",
     "RGCCI": "https://dc.crsorgi.gov.in",
@@ -45,15 +45,15 @@ def capture_screenshots(output_dir="reference"):
             filepath = os.path.join(output_dir, safe_name)
             driver.save_screenshot(filepath)
 
-            print(f"✅ Saved: {filepath}")
+            print(f"Saved: {filepath}")
 
         except WebDriverException as e:
-            print(f"❌ Failed to capture {url} ({name}): {e}")
+            print(f"Failed to capture {url} ({name}): {e}")
         except Exception as e:
-            print(f"⚠️ Unexpected error for {url} ({name}): {e}")
+            print(f"Unexpected error for {url} ({name}): {e}")
 
     driver.quit()
-    print("\n🎉 All screenshots captured successfully!")
+    print("\nAll screenshots captured successfully!")
 
 
 if __name__ == "__main__":

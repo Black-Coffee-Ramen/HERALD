@@ -28,7 +28,7 @@ def load_cse_reference():
     df['Whitelisted Domains'] = df['Whitelisted Domains'].astype(str).str.strip().str.lower()
     cse_domain_to_name = dict(zip(df['Whitelisted Domains'], df['Organisation Name']))
     
-    print(f"✅ Loaded {len(cse_domain_to_name)} CSE references")
+    print(f"Loaded {len(cse_domain_to_name)} CSE references")
     return cse_domain_to_name, df
 
 def normalize_domain(domain):

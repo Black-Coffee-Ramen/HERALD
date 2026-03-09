@@ -95,9 +95,9 @@ def enrich_predictions():
     # Save enriched data
     df_enriched = pd.DataFrame(enriched_rows)
     df_enriched.to_csv("outputs/enriched_predictions.csv", index=False)
-    print("✅ Enriched data saved!")
+    print("Enriched data saved!")
     return df_enriched
 
 if __name__ == "__main__":
-    print("🚀 Starting domain enrichment process...")
+    print("Starting domain enrichment process...")
     enrich_predictions()
