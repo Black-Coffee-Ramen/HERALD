@@ -29,7 +29,7 @@ def check_auth():
 
 check_auth()
 
-st.title("🛡️ Phishing Detection Dashboard")
+st.title("Phishing Detection Dashboard")
 
 def get_label_color(label):
     if label == "Phishing":
@@ -110,3 +110,4 @@ with st.form("manual_scan"):
                 st.error(f"Failed to queue domain. API Error: {res.text}")
         except Exception as e:
             st.error(f"Error contacting API: {e}")
+
