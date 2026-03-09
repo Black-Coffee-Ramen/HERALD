@@ -13,7 +13,7 @@ def check_auth():
         st.session_state.authenticated = False
 
     if not st.session_state.authenticated:
-        st.markdown("## 🔒 Authentication Required")
+        st.markdown("## Authentication Required")
         token_input = st.text_input("Enter API Token:", type="password")
         if st.button("Login"):
             if token_input == API_TOKEN:
@@ -110,4 +110,5 @@ with st.form("manual_scan"):
                 st.error(f"Failed to queue domain. API Error: {res.text}")
         except Exception as e:
             st.error(f"Error contacting API: {e}")
+
 
