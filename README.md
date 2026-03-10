@@ -335,12 +335,6 @@ Please open an issue before starting large changes.
 
 ---
 
-## License
-
-MIT License — use freely, attribution appreciated.
-
----
-
 ## Declared External Dependencies
 
 All external network calls made by HERALD:
@@ -365,3 +359,4 @@ athiyo22118@iiitd.ac.in
 
 
 *Precision 0.977 on live PhishTank data · Zero third-party APIs · Fully on-premises*
+
