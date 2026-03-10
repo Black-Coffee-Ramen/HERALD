@@ -30,8 +30,14 @@ def extract_url_features(df, domain_col='domain'):
     def parse_url_parts(u):
         if '//' not in u:
             u = '//' + u
-        parsed = urlparse(u)
-        return parsed.netloc or parsed.path.split('/')[0], parsed.path
+        try:
+            parsed = urlparse(u)
+            return parsed.netloc or parsed.path.split('/')[0], parsed.path
+        except ValueError:
+            # Fallback for invalid URLs (e.g., malformed IPv6 brackets)
+            domain = u.replace('//', '').split('/')[0]
+            path = '/' + '/'.join(u.replace('//', '').split('/')[1:])
+            return domain, path
 
     parsed_parts = urls.apply(parse_url_parts)
     domains = parsed_parts.apply(lambda x: x[0])
@@ -96,7 +102,7 @@ def extract_url_features(df, domain_col='domain'):
     def calc_brand_ratio(row):
         kw = row[5]
         reg_len = row[2]
-        if kw and reg_len > 0:
+        if isinstance(kw, str) and reg_len > 0:
             return len(kw) / reg_len
         return 0.0
     features['brand_to_reg_length_ratio'] = parts_analysis.apply(calc_brand_ratio, axis=1)
@@ -124,6 +130,18 @@ def extract_url_features(df, domain_col='domain'):
     features['has_ip'] = domains.str.match(r'^\d+\.\d+\.\d+\.\d+$').fillna(False).astype(int)
     repeated_digits_match = domains.str.extract(r'(\d)\1{2,}', expand=False)
     features['has_repeated_digits'] = (~repeated_digits_match.isna()).astype(int)
+    
+    # New Features for v5b
+    features['consonant_ratio'] = domains.str.count(r'[bcdfghjklmnpqrstvwxyz]') / np.maximum(features['domain_length'], 1)
+    features['vowel_ratio'] = domains.str.count(r'[aeiou]') / np.maximum(features['domain_length'], 1)
+    
+    def get_longest_consonant_run(d):
+        runs = re.findall(r'[bcdfghjklmnpqrstvwxyz]+', str(d).lower())
+        return max([len(r) for r in runs]) if runs else 0
+    features['longest_consonant_run'] = domains.apply(get_longest_consonant_run)
+    
+    features['is_punycode'] = domains.str.startswith('xn--').astype(int)
+    features['subdomain_depth'] = domains.apply(lambda x: max(str(x).count('.') - 1, 0))
     
     # TLD features
     features['is_common_tld'] = tlds.isin(['com', 'org', 'net', 'edu', 'gov']).fillna(False).astype(int)

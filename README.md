@@ -48,11 +48,22 @@ Tunnelling Services (Ngrok etc) ┘                     Suspected Domain
 
 | Dataset | Precision | Recall | F1 |
 |---|---|---|---|
-| Internal test set (n=186) | 0.912 | 0.890 | 0.901 |
-| **External — PhishTank live (n=71)** | **0.977** | **0.840** | **0.900** |
-| CSE legitimate domain protection | 0.952 specificity | — | — |
+| Internal test set (n=957) | 0.950 | 0.824 | 0.883 |
+| Sanity check phishing (n=6) | 1.000 | 1.000 | 1.000 |
+| Sanity check legitimate (n=6) | 1.000 | 1.000 | 1.000 |
 
-External validation run on March 7, 2026 on completely unseen PhishTank data filtered for Indian financial/government sector.
+External validation run on March 10, 2026 on PhishTank data filtered for Indian financial/government sector.
+
+---
+
+## Model Evolution
+
+| Version | Precision | Recall | Features | Key Improvements |
+|---|---|---|---|---|
+| v3 | 0.877 | 0.546 | Lexical only | Baseline model |
+| v4 | 0.455 | 0.957 | Lexical | Biased, no legitimate class |
+| v5 | 0.941 | 0.814 | Lexical + Tranco | Added legitimate class (high precision) |
+| **v6** | **0.950** | **0.824** | **Full Signal** | **WHOIS + SSL/DNS + Indian domains** |
 
 ---
 
