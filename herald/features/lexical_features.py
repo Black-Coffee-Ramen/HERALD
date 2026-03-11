@@ -158,6 +158,62 @@ def extract_url_features(df, domain_col='domain'):
     
     features['has_https'] = urls.str.startswith('https://').fillna(False).astype(int)
     
+    # n-gram features
+    def get_ngram_features(domain):
+        """
+        Extract character n-gram suspicious pattern scores.
+        Uses pre-defined suspicious trigrams common in phishing.
+        """
+        # Clean domain — remove TLD, get SLD only
+        parts = domain.lower().split('.')
+        sld = parts[-2] if len(parts) >= 2 else domain
+        
+        # Known suspicious trigrams from phishing domain analysis
+        suspicious_trigrams = [
+            'sec', 'log', 'ver', 'upd', 'kyo', 'pay',
+            'net', 'ban', 'inf', 'ref', 'acc', 'act',
+            'onl', 'mob', 'app', 'srv', 'usr', 'sup',
+            'hel', 'cus', 'ser', 'por', 'tal', 'aut'
+        ]
+        
+        # Known legitimate trigrams (common in real domains)
+        legitimate_trigrams = [
+            'com', 'gov', 'org', 'edu', 'the', 'and',
+            'ing', 'ion', 'ent', 'ati', 'tio', 'ers'
+        ]
+        
+        # Extract all trigrams from SLD
+        trigrams = [sld[i:i+3] for i in range(len(sld)-2)]
+        
+        if not trigrams:
+            return {
+                'suspicious_trigram_count': 0,
+                'legitimate_trigram_count': 0,
+                'trigram_suspicion_ratio': 0.0,
+                'unique_trigram_ratio': 0.0,
+                'max_repeated_trigram': 0
+            }
+        
+        sus_count = sum(1 for t in trigrams if t in suspicious_trigrams)
+        leg_count = sum(1 for t in trigrams if t in legitimate_trigrams)
+        unique_ratio = len(set(trigrams)) / len(trigrams)
+        
+        from collections import Counter
+        counts = Counter(trigrams)
+        max_repeat = max(counts.values()) if counts else 0
+        
+        return {
+            'suspicious_trigram_count': sus_count,
+            'legitimate_trigram_count': leg_count,
+            'trigram_suspicion_ratio': sus_count / len(trigrams),
+            'unique_trigram_ratio': unique_ratio,
+            'max_repeated_trigram': max_repeat
+        }
+
+    ngram_results = domains.apply(get_ngram_features)
+    ngram_df = pd.DataFrame(ngram_results.tolist(), index=df.index)
+    features = pd.concat([features, ngram_df], axis=1)
+    
     # Fill NaN and ensure numeric
     features = features.fillna(0)
     # Drop intermediate columns if any

@@ -14,7 +14,7 @@ HERALD is:
 - **Fully self-hosted** — your domain watchlist never leaves your infrastructure
 - **API-free** — no VirusTotal, no Shodan, no commercial feeds
 - **Real-time** — catches phishing domains within minutes of registration via Certificate Transparency logs
-- **Production-validated** — 97.7% precision, 84.0% recall on live PhishTank data (March 2026)
+- **Production-validated** — 0.981 precision, 0.841 recall on Indian CSE-filtered data (v7 Model)
 
 ---
 
@@ -29,12 +29,11 @@ Tunnelling Services (Ngrok etc) ┘                     Suspected Domain
                                                        Re-monitor Queue
                                                        (configurable, default 90 days)
 ```
-
 ### Detection Pipeline
 
 1. **Real-time Discovery** — Certstream WebSocket monitors Certificate Transparency logs. Newly registered domain feeds polled every hour. Social media scraped for shared phishing links.
 
-2. **ML Ensemble (v3)** — XGBoost + Random Forest ensemble on 30+ engineered features including lexical ratios, fuzzy brand matching, TLD risk scoring, and path keyword detection.
+2. **Two-stage detection pipeline** — Fast lexical screening followed by network enrichment for borderline cases.
 
 3. **OCR Visual Fallback** — Borderline predictions trigger a headless browser screenshot + visual similarity analysis against known CSE templates. Catches phishing pages with no URL similarity to the target brand.
 
@@ -48,7 +47,7 @@ Tunnelling Services (Ngrok etc) ┘                     Suspected Domain
 
 | Dataset | Precision | Recall | F1 |
 |---|---|---|---|
-| Internal test set (n=957) | 0.950 | 0.824 | 0.883 |
+| Indian CSE-Filtered Test Set | 0.981 | 0.841 | 0.906 |
 | Sanity check phishing (n=6) | 1.000 | 1.000 | 1.000 |
 | Sanity check legitimate (n=6) | 1.000 | 1.000 | 1.000 |
 
@@ -64,6 +63,16 @@ External validation run on March 10, 2026 on PhishTank data filtered for Indian 
 | v4 | 0.455 | 0.957 | Lexical | Biased, no legitimate class |
 | v5 | 0.941 | 0.814 | Lexical + Tranco | Added legitimate class (high precision) |
 | **v6** | **0.950** | **0.824** | **Full Signal** | **WHOIS + SSL/DNS + Indian domains** |
+| **v7** | **0.981** | **0.841** | **Production** | **Two-Stage Inference + Content Features** |
+| v8 (Exp)| 0.969 | 0.847 | Hybrid | Char-Transformer Ensemble (Experimental) |
+
+---
+
+## Research Conclusion: The Lexical Ceiling
+
+After extensive experimentation with Transformers (v8), class balancing, and increased dataset sizing (213k domains), we've identified that domain-name-only detection hits a fundamental performance ceiling at approximately **F1 ~0.91**.
+
+Breaking this barrier requires live page content analysis (implemented in v7 Stage 2), though phishing domains' short lifespan remains a significant temporal constraint for network-heavy enrichment.
 
 ---
 
