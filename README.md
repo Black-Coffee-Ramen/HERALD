@@ -20,15 +20,7 @@ HERALD is:
 
 ## How It Works
 
-```
-Certificate Transparency Logs ──┐
-Newly Registered Domain Feeds ──┤
-Social Media / Telegram ────────┼──▶ Ingestion Layer ──▶ ML Ensemble (v3) ──▶ OCR Fallback ──▶ Alert
-DNS / WHOIS Feeds ──────────────┤                              │
-Tunnelling Services (Ngrok etc) ┘                     Suspected Domain
-                                                       Re-monitor Queue
-                                                       (configurable, default 90 days)
-```
+![HERALD System Architecture](Figure-1.png)
 ### Detection Pipeline
 
 1. **Real-time Discovery** — Certstream WebSocket monitors Certificate Transparency logs. Newly registered domain feeds polled every hour. Social media scraped for shared phishing links.
@@ -220,22 +212,7 @@ requirements.txt
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────┐
-│                   Docker Network                     │
-│                                                      │
-│  ┌──────────┐   ┌──────────┐   ┌─────────────────┐  │
-│  │Streamlit │   │ FastAPI  │   │    Workers       │  │
-│  │Dashboard │◀──│   API    │◀──│ Certstream       │  │
-│  │ :8501    │   │  :8000   │   │ Domain Poller    │  │
-│  └──────────┘   └────┬─────┘   │ Scheduler        │  │
-│                      │         └────────┬────────┘  │
-│              ┌───────▼──────┐           │            │
-│              │  PostgreSQL  │◀──────────┘            │
-│              │   + Redis    │                        │
-│              └──────────────┘                        │
-└─────────────────────────────────────────────────────┘
-```
+![HERALD Technical Architecture](Figure-1.png)
 
 **Services:**
 - `dashboard` — Streamlit UI with live alerts and CSE↔phishing mapping
