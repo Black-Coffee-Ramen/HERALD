@@ -2,6 +2,10 @@
 data/
 outputs/
 
+# Documentation (Only keep READMEs)
+*.md
+!**/README.md
+
 # Models (large binary files — track separately with Git LFS if needed)
 *.pkl
 
@@ -33,6 +37,7 @@ env/
 .idea/
 .vscode/
 *.swp
+.gemini/
 
 # Logs
 *.log
@@ -40,6 +45,14 @@ docker_build.log
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Databases
+*.db
+*.sqlite3
+
+# Node
+node_modules/
+dist/
 
 # Test coverage
 .coverage

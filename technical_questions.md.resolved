@@ -1,0 +1,23 @@
+# Technical Integration & Strengthening Questions
+
+To elevate HERALD to a top-tier conference paper and a VC-ready product, we need to address these deep technical areas:
+
+### 1. Dataset Diversity & Regional Bias
+*   **The Question:** Is the v7 model's 98.1% precision heavily dependent on the specific TLD patterns of Indian CSEs? 
+*   **The Goal:** Test the model against non-Indian brands (e.g., US Fintech, EU Government) to prove global generalizability.
+
+### 2. Adversarial Robustness
+*   **The Question:** How does the system handle "Cloaking"? (e.g., a phishing page that serves legitimate content to your Selenium crawler's IP but phishing content to real users).
+*   **The Goal:** Implement headless browser fingerprinting evasion and proxy rotation in the Stage 2 crawler.
+
+### 3. OCR & Visual Efficiency
+*   **The Question:** What is the throughput bottleneck of the `cv_ocr_analyzer`? Can we replace Selenium with a faster specialized headless screenshotter like Playwright or a lighter-weight JS-rendered?
+*   **The Goal:** Scale the Stage 2 processing from "hundreds per hour" to "thousands per minute."
+
+### 4. Semantic Similarity vs. Lexical Matching
+*   **The Question:** Can we replace Levenshtein distance with BERT-based embeddings for URL paths to catch "Contextual Phishing" (e.g., `legit-service.com/login/update-your-bank-info`)?
+*   **The Goal:** Break the Lexical Ceiling using Semantic understanding.
+
+### 5. Temporal Decay Model
+*   **The Question:** What defines the "Chronological Decay" for the suspected queue? Is it a linear re-check interval, or can we use a "Flash Check" strategy (very frequent re-checks in the first 48 hours, then tapering off)?
+*   **The Goal:** Optimize compute resources for the 90-day monitoring window.

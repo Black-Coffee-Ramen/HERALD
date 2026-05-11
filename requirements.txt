@@ -26,6 +26,7 @@ reportlab>=4.0.0
 # Utilities
 tqdm>=4.60.0
 schedule>=1.2.0
+structlog>=23.1.0
 
 # API & Database
 fastapi>=0.100.0
@@ -35,6 +36,8 @@ psycopg2-binary>=2.9.0
 python-dotenv>=1.0.0
 redis>=5.0.0
 APScheduler>=3.10.0
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
 
 # Detection Pipeline
 certstream>=1.6.0
@@ -51,3 +54,4 @@ pyyaml>=6.0.0
 streamlit>=1.28.0
 pytesseract>=0.3.10
 dnspython>=2.3.0
+slowapi>=0.1.8

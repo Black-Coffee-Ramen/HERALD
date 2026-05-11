@@ -1,0 +1,38 @@
+# Startup & Pitching Strategy: HERALD
+
+## 1. The Core Pitch
+*   **Problem Statement:** Phishing is the entry point for 90% of cyberattacks, yet effective detection relies on expensive, external APIs that expose sensitive organizational data and fail on zero-day domains.
+*   **Solution:** HERALD is an autonomous, on-premises AI platform that discovers and neutralizes phishing threats the moment they are registered — with zero external API dependencies.
+*   **Why Now?** The rise of generative AI allows attackers to launch thousands of perfect lookalike domains daily. Organizations need "Sovereign Intelligence" to stay ahead without the data privacy risks of the cloud.
+
+## 2. Value Proposition & Competitive Advantage
+*   **API-Free (Cost + Privacy):** Saves $10k+ annually in threat intel fees while keeping all intelligence local.
+*   **Discovery vs. Verification:** Most tools check if a link is bad; HERALD monitors CT Logs to find bad links before they even go live.
+*   **High Precision (97.7%):** Lowers "alert fatigue" for security teams.
+
+## 3. Monetization & Business Models
+*   **Enterprise Edition:** Self-hosted VM/Container with premium brand watchlists and automated takedown integration.
+*   **Managed Service (SaaS):** A privacy-first cloud version for SMEs who want the power without the infra management.
+*   **Open-Core:** Keep the engine open-source; sell the "Intelligence Feeds" (advanced keywords + forensic reports).
+
+## 4. Elevator Pitches
+### 1-Minute Executive Pitch
+"We are building HERALD, the first self-sovereign AI platform for phishing detection. While most security tools rely on expensive third-party APIs that leak your data, HERALD generates its own intelligence locally. By monitoring global domain registries in real-time and using a unique multi-stage AI pipeline, we achieve 98% precision in catching brand-theft sites within minutes of their birth. We’re helping critical sector entities like banks and governments secure their digital perimeter while ensuring complete data sovereignty."
+
+### 5-Minute Technical Pitch
+Focus on the **Two-Stage Pipeline** and **Lexical Ceiling**.
+1.  **Ingestion:** Real-time CT Log processing.
+2.  **Stage 1:** Lexical filtering (XGBoost) for sub-millisecond screening.
+3.  **Stage 2:** Selenium + OCR fallback for visual verification against brand templates.
+4.  **Novelty:** The "Suspicion Queue" that re-monitors parked domains until they go live.
+
+## 5. Team Building & Scaling
+### Required Talent
+*   **ML Security Engineer:** Focus on adversarial robustness and dataset curation.
+*   **Backend Architect:** Scalable data ingestion (Redis/FastAPI).
+*   **Security Researcher (OSINT):** Mapping TTPs (Tactics, Techniques, and Procedures) of phishing groups.
+
+### Scaling Paths
+*   **Open Source:** Build a community around "Brand Keyword Lists" (The HERALD Registry).
+*   **Research Lab:** Partner with universities for "Adversarial Phishing" research.
+*   **Startup:** Focus on "Data Sovereignty Compliance" for European and Asian markets.

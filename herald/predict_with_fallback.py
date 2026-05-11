@@ -170,17 +170,6 @@ class PhishingPredictorV3:
 
     def predict(self, domain, cse_name=None):
         """Predict if a domain is phishing with ML (Full v7 Signal) + Stage 2 Content Analysis"""
-        # 0. Whitelist Check
-        whitelist = self.ensemble.get('whitelist', [])
-        clean_domain = domain.lower().strip().replace('www.', '')
-        if clean_domain in whitelist:
-            return {
-                'domain': domain,
-                'ml_confidence': 0.01,
-                'status': 'Clean',
-                'analysis_type': 'Whitelist'
-            }
-
         # 1. Feature Extraction
         df = pd.DataFrame([{'domain': domain}])
         df_features = extract_url_features(df, domain_col='domain')

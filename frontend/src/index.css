@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+:root {
+  background-color: #050505;
+  color: #ffffff;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+@theme {
+  --color-cyber-black: #050505;
+  --color-cyber-cyan: #00f2ff;
+  --color-cyber-red: #ff003c;
+  --color-cyber-glass: rgba(30, 41, 59, 0.4);
+  
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.glass {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glow-cyan {
+  box-shadow: 0 0 20px rgba(0, 242, 255, 0.4);
+}
+
+.glow-red {
+  box-shadow: 0 0 20px rgba(255, 0, 60, 0.4);
+}
