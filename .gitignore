@@ -2,12 +2,30 @@
 data/
 outputs/
 
-# Documentation (Only keep READMEs)
+# Documentation (Only keep the main README)
 *.md
-!**/README.md
+!README.md
+!doc.md
+
+# PDFs and Reports (never commit)
+*.pdf
+*.report
+*.doc
+*.docx
+*.odt
+*.rtf
+*.tex
+*.ppt
+*.pptx
 
 # Models (large binary files — track separately with Git LFS if needed)
 *.pkl
+*.joblib
+*.h5
+*.hdf5
+*.onnx
+*.pt
+*.pth
 
 # Evidence directories
 evidences_temp/
@@ -16,6 +34,9 @@ evidence/
 
 # Secrets
 .env
+*.key
+*.pem
+*.crt
 
 # Python
 __pycache__/
@@ -26,11 +47,13 @@ build/
 dist/
 *.egg-info/
 .eggs/
+*.pyd
 
 # Virtual environments
 venv/
 .venv/
 env/
+ENV/
 
 # IDE
 .DS_Store
@@ -38,22 +61,48 @@ env/
 .vscode/
 *.swp
 .gemini/
+*.sublime-*
 
 # Logs
 *.log
 docker_build.log
+*.pid
 
 # Jupyter
 .ipynb_checkpoints/
+*.ipynb
+!*.ipynb  # Uncomment if you want to keep notebooks
 
 # Databases
 *.db
 *.sqlite3
+*.sqlite
 
 # Node
 node_modules/
 dist/
+npm-debug.log*
 
 # Test coverage
 .coverage
 htmlcov/
+.pytest_cache/
+.tox/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Archive files (usually not needed in repos)
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+
+
+# Environment and config with secrets
+config.local.*
+*.local.yaml
+*.local.yml
