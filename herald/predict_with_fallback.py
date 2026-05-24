@@ -168,8 +168,8 @@ class PhishingPredictorV3:
             self._ocr_analyzer = CVOCRAnalyzer()
         return self._ocr_analyzer
 
-    def predict(self, domain, cse_name=None):
-        """Predict if a domain is phishing with ML (Full v7 Signal) + Stage 2 Content Analysis"""
+    def predict(self, domain, cse_name=None, include_visual=True):
+        """Predict if a domain is phishing with ML signals and optional visual fallback."""
         # 1. Feature Extraction
         df = pd.DataFrame([{'domain': domain}])
         df_features = extract_url_features(df, domain_col='domain')
@@ -238,10 +238,17 @@ class PhishingPredictorV3:
         if ml_conf >= self.fallback_trigger:
             if not cse_name:
                 cse_name = self._extract_brand(domain)
+
+            if not include_visual:
+                result['status'] = 'Suspected'
+                result['analysis_type'] = 'ML-v7-Ensemble + Visual Pending'
+                result['visual_analysis_required'] = True
+                result['target_cse'] = cse_name
+                return result
             
             try:
-                ocr_res = self.ocr_analyzer.analyze_domain(domain, cse_name, ml_conf)
-                indicators = eval(ocr_res.get('phishing_indicators', '{}'))
+                ocr_res = self.analyze_visual_fallback(domain, cse_name, ml_conf)
+                indicators = CVOCRAnalyzer.parse_indicators(ocr_res.get('phishing_indicators', '{}'))
                 if indicators.get('visual_match', False):
                     result['status'] = 'Phishing'
                     result['analysis_type'] = 'ML + OCR Fallback'
@@ -256,6 +263,10 @@ class PhishingPredictorV3:
                 result['status'] = 'Suspected'
                 
         return result
+
+    def analyze_visual_fallback(self, domain, cse_name, initial_confidence):
+        """Run the slow browser/OCR fallback outside the fast queue worker."""
+        return self.ocr_analyzer.analyze_domain(domain, cse_name, initial_confidence)
 
 if __name__ == "__main__":
     predictor = PhishingPredictorV3()

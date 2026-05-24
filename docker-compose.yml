@@ -25,9 +25,12 @@ services:
       - "8000:8000"
     environment:
       - REDIS_HOST=redis
+      - DOMAIN_QUEUE_MAX_READY=5000
     depends_on:
       redis:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
@@ -42,11 +45,43 @@ services:
       - .:/app
     environment:
       - REDIS_HOST=redis
+      - VISUAL_QUEUE_MAX_READY=1000
     depends_on:
       redis:
         condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
     deploy:
       resources:
         limits:
           memory: 1G
 
+  visual-worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    command: python -m herald.monitoring.visual_worker
+    volumes:
+      - .:/app
+    environment:
+      - REDIS_HOST=redis
+      - BROWSER_ALLOW_UNSAFE_NO_SANDBOX=false
+      - BROWSER_TIMEOUT_SECONDS=20
+      - VISUAL_ANALYSIS_TIMEOUT_SECONDS=45
+      - VISUAL_CIRCUIT_FAILURE_THRESHOLD=5
+      - VISUAL_CIRCUIT_RESET_SECONDS=300
+    depends_on:
+      redis:
+        condition: service_healthy
+    shm_size: "1gb"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    deploy:
+      resources:
+        limits:
+          memory: 2G

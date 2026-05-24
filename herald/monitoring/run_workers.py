@@ -7,6 +7,7 @@ from herald.ingestion.new_domains_monitor import start_polling
 from herald.ingestion.social_monitor import run_social_monitor as start_social_monitor
 from herald.monitoring.scheduler import scheduler, check_suspected_domains
 from herald.monitoring.queue_worker import start_queue_worker
+from herald.monitoring.visual_worker import start_visual_worker
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(name)s %(asctime)s - %(message)s')
 
@@ -33,6 +34,10 @@ def run_social_monitor():
     logging.info("Starting Social Monitor thread...")
     start_social_monitor()
 
+def run_visual_worker():
+    logging.info("Starting Visual Worker thread...")
+    start_visual_worker()
+
 def start_all_workers():
     # Wait a few seconds for Redis/DB to spin up in Docker before starting loops
     time.sleep(5)
@@ -43,12 +48,14 @@ def start_all_workers():
     t3 = threading.Thread(target=run_scheduler, daemon=True)
     t4 = threading.Thread(target=run_queue_worker, daemon=True)
     t5 = threading.Thread(target=run_social_monitor, daemon=True)
+    t6 = threading.Thread(target=run_visual_worker, daemon=True)
 
     t1.start()
     t2.start()
     t3.start()
     t4.start()
     t5.start()
+    t6.start()
 
     logging.info("All worker threads launched. Awaiting termination signal.")
     try:

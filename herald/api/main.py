@@ -1,10 +1,13 @@
 from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, Security
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
-from fastapi.responses import Response
+from fastapi.responses import PlainTextResponse, Response
 import redis
 import json
 import logging
+import time
+import uuid
+from datetime import datetime
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import create_engine, text
 import sys
@@ -19,7 +22,11 @@ init_db()
 from herald.core.auth import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM
 from herald.utils.logging_config import setup_logging
 from herald.utils.export import generate_pdf_report
+from herald.monitoring.metrics import metrics
+from herald.monitoring.resilience import CircuitBreakerConfig, RedisCircuitBreaker
+from herald.monitoring.redis_queue import DOMAIN_ANALYSIS_QUEUE, VISUAL_ANALYSIS_QUEUE, RedisReliableQueue
 import structlog
+from structlog.contextvars import bind_contextvars, clear_contextvars
 
 setup_logging()
 logger = structlog.get_logger(__name__)
@@ -54,7 +61,31 @@ except redis.ConnectionError:
     logging.warning("Could not connect to Redis from API layer.")
     redis_client = None
 
+domain_queue = RedisReliableQueue(redis_client, DOMAIN_ANALYSIS_QUEUE) if redis_client else None
+visual_queue = RedisReliableQueue(redis_client, VISUAL_ANALYSIS_QUEUE) if redis_client else None
+visual_circuit = (
+    RedisCircuitBreaker(redis_client, CircuitBreakerConfig(name="visual_analysis"))
+    if redis_client
+    else None
+)
+DOMAIN_QUEUE_MAX_READY = int(os.getenv("DOMAIN_QUEUE_MAX_READY", "5000"))
+
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
+
+
+@app.middleware("http")
+async def request_context_middleware(request: Request, call_next):
+    trace_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    bind_contextvars(trace_id=trace_id)
+    started_at = time.monotonic()
+    try:
+        response = await call_next(request)
+        metrics.increment("herald_http_requests_total", method=request.method, path=request.url.path, status=str(response.status_code))
+        response.headers["x-request-id"] = trace_id
+        return response
+    finally:
+        metrics.observe("herald_http_request_seconds", time.monotonic() - started_at, method=request.method, path=request.url.path)
+        clear_contextvars()
 
 @app.get("/")
 def read_root():
@@ -145,19 +176,43 @@ def trigger_scan(request: Request, scan_req: ScanRequest, current_user: User = D
     """
     Push a domain directly into the processing queue.
     """
-    if not redis_client:
+    if not domain_queue:
         logger.error("redis_offline", action="trigger_scan")
         raise HTTPException(status_code=500, detail="Redis queue is offline")
+
+    domain_depth = domain_queue.depth()
+    metrics.gauge("herald_queue_depth", domain_depth["ready"], queue=DOMAIN_ANALYSIS_QUEUE.ready, state="ready")
+    if domain_depth["ready"] >= DOMAIN_QUEUE_MAX_READY:
+        logger.warning("domain_queue_pressure_rejected", ready_depth=domain_depth["ready"], max_ready=DOMAIN_QUEUE_MAX_READY)
+        metrics.increment("herald_scan_rejected_total", reason="queue_pressure")
+        raise HTTPException(status_code=429, detail="Scan queue is under pressure; retry later")
         
-    job_data = json.dumps({
+    trace_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    job_id = domain_queue.enqueue({
         "domain": scan_req.domain,
         "source": "api_manual",
-        "target_cse": scan_req.target_cse
+        "target_cse": scan_req.target_cse,
+        "trace_id": trace_id,
     })
-    redis_client.rpush("domain_analysis_queue", job_data)
-    logger.info("domain_queued", domain=scan_req.domain, user=current_user.username)
+    logger.info("domain_queued", domain=scan_req.domain, user=current_user.username, job_id=job_id)
     
-    return {"status": "ok", "message": f"Domain {scan_req.domain} queued for analysis"}
+    return {"status": "ok", "job_id": job_id, "message": f"Domain {scan_req.domain} queued for analysis"}
+
+
+@app.get("/metrics", response_class=PlainTextResponse)
+def prometheus_metrics():
+    if domain_queue:
+        for state, value in domain_queue.depth().items():
+            metrics.gauge("herald_queue_depth", value, queue=DOMAIN_ANALYSIS_QUEUE.ready, state=state)
+    if visual_queue:
+        for state, value in visual_queue.depth().items():
+            metrics.gauge("herald_queue_depth", value, queue=VISUAL_ANALYSIS_QUEUE.ready, state=state)
+    if visual_circuit:
+        circuit_state = visual_circuit.state()
+        metrics.gauge("herald_circuit_failures", circuit_state["failures"], circuit="visual_analysis")
+        metrics.gauge("herald_circuit_open", 1 if circuit_state["state"] == "open" else 0, circuit="visual_analysis")
+
+    return PlainTextResponse(metrics.render_prometheus(), media_type="text/plain; version=0.0.4")
 
 @app.get("/api/suspected")
 def get_suspected_domains(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -214,27 +269,17 @@ def get_failed_jobs(current_user: User = Depends(get_current_user)):
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis queue is offline")
     
-    failed_jobs = redis_client.lrange("failed_jobs", 0, -1)
+    failed_jobs = redis_client.lrange(DOMAIN_ANALYSIS_QUEUE.dlq, 0, -1)
     return {"count": len(failed_jobs), "jobs": [json.loads(job) for job in failed_jobs]}
 
 @app.post("/api/admin/failed-jobs/retry")
 def retry_failed_jobs(current_user: User = Depends(get_current_user)):
-    if not redis_client:
+    if not domain_queue:
         raise HTTPException(status_code=500, detail="Redis queue is offline")
         
-    failed_jobs = redis_client.lrange("failed_jobs", 0, -1)
-    if not failed_jobs:
-        return {"status": "ok", "requeued": 0}
-        
-    redis_client.delete("failed_jobs")
-    
-    for job_str in failed_jobs:
-        job = json.loads(job_str)
-        job["retries"] = 0 # reset retries
-        redis_client.rpush("domain_analysis_queue", json.dumps(job))
-        
-    logger.info("failed_jobs_requeued", count=len(failed_jobs))
-    return {"status": "ok", "requeued": len(failed_jobs)}
+    requeued = domain_queue.drain_dlq_to_ready()
+    logger.info("failed_jobs_requeued", count=requeued)
+    return {"status": "ok", "requeued": requeued}
 
 class WhitelistCreate(BaseModel):
     domain: str
@@ -319,14 +364,17 @@ def health_check(db: Session = Depends(get_db)):
     # Check Redis Queue Depth and Worker
     if redis_client:
         try:
-            health["services"]["redis"]["queue_depth"] = redis_client.llen("domain_analysis_queue")
-            health["services"]["redis"]["failed_jobs_count"] = redis_client.llen("failed_jobs")
+            if domain_queue:
+                health["services"]["redis"]["domain_queue"] = domain_queue.depth()
+            if visual_queue:
+                health["services"]["redis"]["visual_queue"] = visual_queue.depth()
+            if visual_circuit:
+                health["services"]["visual_circuit"] = visual_circuit.state()
             
-            last_seen = redis_client.get("worker:last_seen")
+            last_seen = redis_client.get("worker:domain:last_seen")
             if last_seen:
                 health["services"]["worker"]["last_seen"] = last_seen
                 # If last seen > 5 minutes ago, mark as unhealthy
-                from datetime import datetime
                 last_seen_dt = datetime.fromisoformat(last_seen)
                 if (datetime.utcnow() - last_seen_dt).total_seconds() > 300:
                     health["services"]["worker"]["status"] = "stale"
@@ -335,6 +383,17 @@ def health_check(db: Session = Depends(get_db)):
                     health["services"]["worker"]["status"] = "active"
             else:
                 health["services"]["worker"]["status"] = "not_seen"
+
+            visual_last_seen = redis_client.get("worker:visual:last_seen")
+            health["services"]["visual_worker"] = {"status": "not_seen"}
+            if visual_last_seen:
+                health["services"]["visual_worker"]["last_seen"] = visual_last_seen
+                visual_last_seen_dt = datetime.fromisoformat(visual_last_seen)
+                if (datetime.utcnow() - visual_last_seen_dt).total_seconds() > 300:
+                    health["services"]["visual_worker"]["status"] = "stale"
+                    health["status"] = "degraded"
+                else:
+                    health["services"]["visual_worker"]["status"] = "active"
         except Exception as e:
             health["services"]["redis"]["error"] = str(e)
             

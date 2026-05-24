@@ -1,158 +1,222 @@
-import redis
-import json
-import time
 import os
-import sys
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
+import time
 from datetime import datetime
 
-# Setup structured logging
-from herald.utils.logging_config import setup_logging
+import redis
 import structlog
+from structlog.contextvars import bind_contextvars, clear_contextvars
+from sqlalchemy.exc import SQLAlchemyError
+
+from herald.db.models import DomainScan, SessionLocal, Whitelist
+from herald.monitoring.metrics import Timer, metrics
+from herald.monitoring.redis_queue import DOMAIN_ANALYSIS_QUEUE, VISUAL_ANALYSIS_QUEUE, RedisReliableQueue
+from herald.predict_with_fallback import PhishingPredictorV3
+from herald.utils.logging_config import setup_logging
 
 setup_logging()
 logger = structlog.get_logger(__name__)
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from herald.predict_with_fallback import PhishingPredictorV3
-from herald.db.models import DomainScan, DATABASE_URL, Whitelist
-
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+IDEMPOTENCY_TTL_SECONDS = int(os.getenv("IDEMPOTENCY_TTL_SECONDS", "86400"))
+VISUAL_QUEUE_MAX_READY = int(os.getenv("VISUAL_QUEUE_MAX_READY", "1000"))
+
+
+def build_redis_client():
+    client = redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=0,
+        decode_responses=True,
+        socket_timeout=5,
+        socket_connect_timeout=5,
+        health_check_interval=30,
+    )
+    client.ping()
+    return client
+
 
 try:
-    redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
-    redis_client.ping()
-except redis.ConnectionError:
+    redis_client = build_redis_client()
+except redis.RedisError:
     logger.warning("redis_connection_failed", service="queue_worker")
     redis_client = None
 
-def clear_failed_jobs():
-    if redis_client:
-        count = redis_client.llen("failed_jobs")
-        redis_client.delete("failed_jobs")
-        logger.info("failed_jobs_cleared", count=count)
-
-# Initialize DB and predictor at module level
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+domain_queue = RedisReliableQueue(redis_client, DOMAIN_ANALYSIS_QUEUE) if redis_client else None
+visual_queue = RedisReliableQueue(redis_client, VISUAL_ANALYSIS_QUEUE) if redis_client else None
 predictor = PhishingPredictorV3()
 
-def process_domain(job_data):
-    domain = job_data.get('domain')
-    target_cse = job_data.get('target_cse', 'Unknown')
-    source = job_data.get('source', 'manual')
-    
-    logger.info("processing_domain", domain=domain, target_cse=target_cse)
-    
-    # Save to PostgreSQL
+
+def normalize_domain(domain: str) -> str:
+    return domain.lower().strip().replace("www.", "")
+
+
+def should_skip_duplicate(domain: str, job: dict) -> bool:
+    if not redis_client:
+        return False
+
+    if int(job.get("attempts", 0)) > 0:
+        return False
+
+    today = datetime.utcnow().strftime("%Y-%m-%d")
+    seen_key = f"domain:seen:{normalize_domain(domain)}:{today}"
+    is_new = redis_client.setnx(seen_key, "1")
+    if is_new:
+        redis_client.expire(seen_key, IDEMPOTENCY_TTL_SECONDS)
+        return False
+
+    return True
+
+
+def upsert_domain_scan(session, *, domain: str, label: str, confidence: float, target_cse: str, source: str) -> None:
+    existing = session.query(DomainScan).filter_by(domain=domain).first()
+    if existing:
+        existing.label = label
+        existing.confidence = confidence
+        existing.target_cse = target_cse
+        existing.scan_date = datetime.utcnow()
+        existing.source = source
+        return
+
+    session.add(
+        DomainScan(
+            domain=domain,
+            label=label,
+            confidence=confidence,
+            target_cse=target_cse,
+            source=source,
+            scan_date=datetime.utcnow(),
+        )
+    )
+
+
+def enqueue_visual_analysis(domain: str, result: dict, source: str) -> None:
+    if not visual_queue:
+        logger.warning("visual_queue_unavailable", domain=domain)
+        metrics.increment("herald_visual_enqueue_degraded_total", reason="queue_unavailable")
+        return
+
+    visual_depth = visual_queue.depth()
+    metrics.gauge("herald_queue_depth", visual_depth["ready"], queue=VISUAL_ANALYSIS_QUEUE.ready, state="ready")
+    if visual_depth["ready"] >= VISUAL_QUEUE_MAX_READY:
+        logger.warning(
+            "visual_queue_pressure_degraded",
+            domain=domain,
+            ready_depth=visual_depth["ready"],
+            max_ready=VISUAL_QUEUE_MAX_READY,
+        )
+        metrics.increment("herald_visual_enqueue_degraded_total", reason="queue_pressure")
+        return
+
+    visual_queue.enqueue(
+        {
+            "domain": domain,
+            "target_cse": result.get("target_cse", "Unknown"),
+            "initial_confidence": result.get("ml_confidence_adjusted", result.get("ml_confidence", 0.0)),
+            "source": source,
+            "parent_analysis_type": result.get("analysis_type"),
+        }
+    )
+    logger.info("visual_analysis_queued", domain=domain, target_cse=result.get("target_cse", "Unknown"))
+
+
+def process_domain(job_data: dict) -> None:
+    domain = job_data.get("domain")
+    if not domain:
+        raise ValueError("job is missing required domain")
+
+    target_cse = job_data.get("target_cse", "Unknown")
+    source = job_data.get("source", "manual")
+
+    bind_contextvars(trace_id=job_data.get("trace_id"), job_id=job_data.get("job_id"))
+    logger.info("processing_domain", domain=domain, target_cse=target_cse, source=source)
+
     session = SessionLocal()
     try:
-        # Check Whitelist First
-        clean_domain = domain.lower().strip().replace('www.', '')
-        is_whitelisted = session.query(Whitelist).filter(Whitelist.domain == clean_domain).first()
-        
-        if is_whitelisted:
-            label = 'Clean'
-            confidence = 0.01
-            logger.info("domain_whitelisted_intercept", domain=domain)
-        else:
-            # Run ML prediction
-            result = predictor.predict(domain)
-            label = result.get('status', 'Unknown')
-            confidence = float(result.get('ml_confidence', 0.0))
-            
-        # Check if domain already exists
-        existing = session.query(DomainScan).filter_by(domain=domain).first()
-        if existing:
-            existing.label = label
-            existing.confidence = confidence
-            existing.target_cse = target_cse
-            existing.scan_date = datetime.utcnow()
-            existing.source = source
-        else:
-            scan = DomainScan(
+        with Timer("herald_domain_processing_seconds", worker="domain"):
+            clean_domain = normalize_domain(domain)
+            is_whitelisted = session.query(Whitelist).filter(Whitelist.domain == clean_domain).first()
+
+            if is_whitelisted:
+                label = "Clean"
+                confidence = 0.01
+                result = {"analysis_type": "Whitelist"}
+                logger.info("domain_whitelisted_intercept", domain=domain)
+            else:
+                result = predictor.predict(domain, cse_name=target_cse, include_visual=False)
+                label = result.get("status", "Unknown")
+                confidence = float(result.get("ml_confidence_adjusted", result.get("ml_confidence", 0.0)))
+
+            upsert_domain_scan(
+                session,
                 domain=domain,
                 label=label,
                 confidence=confidence,
                 target_cse=target_cse,
                 source=source,
-                scan_date=datetime.utcnow()
             )
-            session.add(scan)
-        session.commit()
-        logger.info("domain_processed", domain=domain, label=label, confidence=confidence)
-        
-        # Update heartbeat in Redis
-        if redis_client:
-            redis_client.set("worker:last_seen", datetime.utcnow().isoformat())
-    except Exception as e:
+            session.commit()
+
+            if result.get("visual_analysis_required"):
+                enqueue_visual_analysis(domain, result, source)
+
+        logger.info(
+            "domain_processed",
+            domain=domain,
+            label=label,
+            confidence=confidence,
+            analysis_type=result.get("analysis_type"),
+        )
+        metrics.increment("herald_jobs_processed_total", worker="domain", status="success")
+    except SQLAlchemyError:
         session.rollback()
-        logger.error("database_save_failed", domain=domain, error=str(e))
+        metrics.increment("herald_jobs_processed_total", worker="domain", status="database_error")
+        logger.exception("database_save_failed", domain=domain)
         raise
     finally:
         session.close()
+        clear_contextvars()
 
-def start_queue_worker():
-    logger.info("worker_started", queue="domain_analysis_queue")
-    if not redis_client:
+
+def start_queue_worker() -> None:
+    logger.info("worker_started", queue=DOMAIN_ANALYSIS_QUEUE.ready)
+    if not redis_client or not domain_queue:
         logger.error("redis_not_available", service="queue_worker")
         return
 
     while True:
+        leased_job_json = None
+        job_data = None
         try:
-            if redis_client:
-                redis_client.set("worker:last_seen", datetime.utcnow().isoformat())
-            # Block until an item is available in the queue
-            queue_result = redis_client.blpop("domain_analysis_queue", timeout=5)
+            redis_client.set("worker:domain:last_seen", datetime.utcnow().isoformat())
+            queue_result = domain_queue.dequeue(timeout=5)
             if not queue_result:
                 continue
 
-            _, job_json = queue_result
-            job_data = json.loads(job_json)
-            
-            domain = job_data.get('domain', 'unknown')
-            retries = job_data.get('retries', 0)
-            
-            # Exponential backoff check
-            available_after = job_data.get('available_after', 0)
-            if time.time() < available_after:
-                # Job is not ready yet, push back and sleep briefly
-                redis_client.rpush("domain_analysis_queue", json.dumps(job_data))
-                time.sleep(1)
+            leased_job_json, job_data = queue_result
+            domain = job_data.get("domain", "unknown")
+
+            if should_skip_duplicate(domain, job_data):
+                logger.info("domain_skipped_idempotent", domain=domain)
+                metrics.increment("herald_jobs_skipped_total", worker="domain", reason="duplicate")
+                domain_queue.ack(leased_job_json)
                 continue
-                
-            # Idempotency check (only on first attempt)
-            if retries == 0 and redis_client:
-                today = datetime.utcnow().strftime("%Y-%m-%d")
-                seen_key = f"domain:seen:{domain}:{today}"
-                is_new = redis_client.setnx(seen_key, "1")
-                if not is_new:
-                    logger.info("domain_skipped_idempotent", domain=domain)
-                    continue
-                redis_client.expire(seen_key, 86400) # expire in 24 hours
 
-            try:
-                process_domain(job_data)
-            except Exception as e:
-                logger.error("processing_error", domain=domain, error=str(e))
-                retries += 1
-                job_data['retries'] = retries
-                job_data['error'] = str(e)
-                
-                if retries >= 3:
-                    logger.error("job_failed_final", domain=domain, retries=retries)
-                    redis_client.rpush("failed_jobs", json.dumps(job_data))
-                else:
-                    # Exponential backoff: 30s, then 120s
-                    delay = 30 if retries == 1 else 120
-                    job_data['available_after'] = time.time() + delay
-                    logger.info("job_requeued_delayed", domain=domain, retries=retries, delay=delay)
-                    redis_client.rpush("domain_analysis_queue", json.dumps(job_data))
+            process_domain(job_data)
+            domain_queue.ack(leased_job_json)
+            metrics.increment("herald_jobs_ack_total", worker="domain")
+        except Exception as exc:
+            metrics.increment("herald_jobs_processed_total", worker="domain", status="error")
+            logger.error(
+                "queue_worker_error",
+                job_id=job_data.get("job_id") if job_data else None,
+                domain=job_data.get("domain") if job_data else None,
+                error=str(exc),
+            )
+            if leased_job_json and job_data:
+                domain_queue.retry_or_dlq(leased_job_json, job_data, exc)
+            time.sleep(1)
 
-        except Exception as e:
-            logger.error("queue_worker_error", error=str(e))
-            time.sleep(5)
 
 if __name__ == "__main__":
     start_queue_worker()

@@ -40,10 +40,17 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
+RUN useradd --create-home --shell /usr/sbin/nologin herald \
+    && mkdir -p /app/evidence /tmp/herald-chrome \
+    && chown -R herald:herald /app /tmp/herald-chrome
+
 # Environment
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV CHROME_BIN=/usr/bin/google-chrome
 ENV CHROMEDRIVER_PATH=/usr/local/bin/chromedriver
+ENV BROWSER_ALLOW_UNSAFE_NO_SANDBOX=false
+
+USER herald
 
 EXPOSE 8000 8501
