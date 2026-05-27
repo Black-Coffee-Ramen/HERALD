@@ -17,7 +17,7 @@
 # HERALD
 ## Phishing Investigation & Threat Intelligence Toolkit
 
-> Self-hosted · Evidence-driven · Explainable · 97.7% precision on live external data
+> Self-hosted · Evidence-driven · 97.7% precision on live external data
 
 HERALD is a phishing-domain investigation platform that combines local ML-based scoring, DNS/WHOIS/TLS enrichment, browser-based evidence collection, OCR extraction, Redis-backed worker orchestration, and operational telemetry — built for analysts investigating domains that target Critical Sector Entities.
 
