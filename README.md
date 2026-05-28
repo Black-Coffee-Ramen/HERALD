@@ -604,7 +604,7 @@ The Next.js frontend runs separately (`cd frontend && npm run dev`).
 
 MIT License
 
-Copyright (c) 2026 Athiyo
+Copyright (c) 2026 Athiyo Chakma
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
