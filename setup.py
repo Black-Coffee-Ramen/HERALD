@@ -1,10 +1,10 @@
-﻿from setuptools import setup, find_packages
+from setuptools import setup, find_packages
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("requirements.txt", "r", encoding="utf-8") as f:
-    requirements = [line.strip() for line in f if line.strip() and not line.startswith("#")]
+with open("requirements-runtime.txt", "r", encoding="utf-8") as f:
+    requirements = [line.strip() for line in f if line.strip() and not line.startswith("#") and not line.startswith("-")]
 
 setup(
     name="herald",
@@ -30,7 +30,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "herald=herald.main_pipeline:main",
+            "herald=herald.cli:main",
         ],
     },
 )

@@ -1,0 +1,41 @@
+# Web & API Core
+fastapi>=0.100.0
+uvicorn>=0.23.0
+slowapi>=0.1.8
+python-dotenv>=1.0.0
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+pyyaml>=6.0.0
+
+# Database & Cache
+sqlalchemy>=2.0.0
+redis>=5.0.0
+psycopg2-binary>=2.9.0
+
+# Inference & Data
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.0.0
+xgboost>=1.5.0
+joblib>=1.0.0
+
+# Network, WHOIS & Feature Extraction
+tldextract>=3.1.0
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+python-whois>=0.8.0
+dnspython>=2.3.0
+python-Levenshtein>=0.21.0
+fuzzywuzzy>=0.18.0
+
+# Monitoring & Workers
+APScheduler>=3.10.0
+certstream>=1.6.0
+structlog>=23.1.0
+
+# Verification & OCR
+playwright>=1.40.0
+pytesseract>=0.3.10
+pillow>=10.0.0
+opencv-python-headless>=4.8.0
+reportlab>=4.0.0

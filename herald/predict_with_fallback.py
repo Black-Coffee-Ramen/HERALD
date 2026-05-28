@@ -10,8 +10,9 @@ import whois
 from datetime import datetime
 import time
 import warnings
+import asyncio
+import threading
 from herald.features.lexical_features import extract_url_features
-from herald.core.cv_ocr_analyzer import CVOCRAnalyzer
 from herald.features.content_features import extract_content_features
 
 """
@@ -38,6 +39,27 @@ Benefits:
 
 # Suppress warnings
 warnings.filterwarnings('ignore')
+
+def _run_async_in_sync(coro):
+    """Run an async coroutine in a synchronous context safely by spawning a new thread."""
+    result = []
+    error = []
+    def target():
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result.append(loop.run_until_complete(coro))
+        except Exception as e:
+            error.append(e)
+        finally:
+            loop.close()
+            
+    t = threading.Thread(target=target)
+    t.start()
+    t.join()
+    if error:
+        raise error[0]
+    return result[0]
 
 class PhishingPredictorV3:
     """
@@ -165,7 +187,8 @@ class PhishingPredictorV3:
     @property
     def ocr_analyzer(self):
         if self._ocr_analyzer is None:
-            self._ocr_analyzer = CVOCRAnalyzer()
+            from herald.core.playwright_analyzer import PlaywrightVisualAnalyzer
+            self._ocr_analyzer = PlaywrightVisualAnalyzer()
         return self._ocr_analyzer
 
     def predict(self, domain, cse_name=None, include_visual=True):
@@ -248,7 +271,7 @@ class PhishingPredictorV3:
             
             try:
                 ocr_res = self.analyze_visual_fallback(domain, cse_name, ml_conf)
-                indicators = CVOCRAnalyzer.parse_indicators(ocr_res.get('phishing_indicators', '{}'))
+                indicators = ocr_res.get('phishing_indicators', {})
                 if indicators.get('visual_match', False):
                     result['status'] = 'Phishing'
                     result['analysis_type'] = 'ML + OCR Fallback'
@@ -260,13 +283,36 @@ class PhishingPredictorV3:
                     result['status'] = 'Suspected'
                     result['analysis_type'] = 'ML-v6-Full-Signal'
             except Exception as e:
+                print(f"Error checking visual indicators: {e}")
                 result['status'] = 'Suspected'
                 
         return result
 
     def analyze_visual_fallback(self, domain, cse_name, initial_confidence):
         """Run the slow browser/OCR fallback outside the fast queue worker."""
-        return self.ocr_analyzer.analyze_domain(domain, cse_name, initial_confidence)
+        try:
+            res = _run_async_in_sync(self.ocr_analyzer.run_analysis(domain))
+            is_susp = res.get("ocr_findings", {}).get("is_suspicious", False)
+            return {
+                "cv_ocr_confirmed": is_susp,
+                "cv_ocr_status": "Confirmed" if is_susp else "Not Confirmed" if res.get("success") else "Unable to capture screenshot",
+                "final_confidence": min(1.0, initial_confidence + 0.4) if is_susp else initial_confidence,
+                "analysis_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "phishing_indicators": {"text_match": is_susp, "visual_match": is_susp, "score": res.get("ocr_findings", {}).get("ocr_risk_score", 0)},
+                "visual_similarity": "N/A",
+                "screenshot_path": res.get("screenshot_path"),
+                "ocr_text": res.get("ocr_text")
+            }
+        except Exception as e:
+            print(f"Error in visual fallback: {e}")
+            return {
+                "cv_ocr_confirmed": False,
+                "cv_ocr_status": "Unable to capture screenshot",
+                "final_confidence": initial_confidence,
+                "analysis_timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "phishing_indicators": {"text_match": False, "visual_match": False, "score": 0},
+                "visual_similarity": "N/A"
+            }
 
 if __name__ == "__main__":
     predictor = PhishingPredictorV3()

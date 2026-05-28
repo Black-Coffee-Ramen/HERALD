@@ -12,6 +12,9 @@ from herald.monitoring.metrics import Timer, metrics
 from herald.monitoring.redis_queue import DOMAIN_ANALYSIS_QUEUE, VISUAL_ANALYSIS_QUEUE, RedisReliableQueue
 from herald.predict_with_fallback import PhishingPredictorV3
 from herald.utils.logging_config import setup_logging
+from herald.telemetry.stream import TelemetryStream
+from herald.telemetry.emitter import TelemetryEmitter
+from herald.core.security import validate_url_safe, SSRFProtectionError
 
 setup_logging()
 logger = structlog.get_logger(__name__)
@@ -28,7 +31,7 @@ def build_redis_client():
         port=REDIS_PORT,
         db=0,
         decode_responses=True,
-        socket_timeout=5,
+        socket_timeout=30,
         socket_connect_timeout=5,
         health_check_interval=30,
     )
@@ -36,22 +39,39 @@ def build_redis_client():
     return client
 
 
-try:
-    redis_client = build_redis_client()
-except redis.RedisError:
-    logger.warning("redis_connection_failed", service="queue_worker")
-    redis_client = None
+redis_client = None
+domain_queue = None
+visual_queue = None
+predictor = None
+emitter = None
 
-domain_queue = RedisReliableQueue(redis_client, DOMAIN_ANALYSIS_QUEUE) if redis_client else None
-visual_queue = RedisReliableQueue(redis_client, VISUAL_ANALYSIS_QUEUE) if redis_client else None
-predictor = PhishingPredictorV3()
 
+def init_worker():
+    global redis_client, domain_queue, visual_queue, predictor, emitter
+    if redis_client is not None:
+        return
+
+    try:
+        redis_client = build_redis_client()
+    except redis.RedisError:
+        logger.warning("redis_connection_failed", service="queue_worker")
+        redis_client = None
+
+    domain_queue = RedisReliableQueue(redis_client, DOMAIN_ANALYSIS_QUEUE) if redis_client else None
+    visual_queue = RedisReliableQueue(redis_client, VISUAL_ANALYSIS_QUEUE) if redis_client else None
+    predictor = PhishingPredictorV3()
+
+    # Initialize Telemetry
+    telemetry_stream = TelemetryStream(redis_client)
+    TelemetryEmitter.initialize(telemetry_stream, worker_type="domain_worker")
+    emitter = TelemetryEmitter.get()
 
 def normalize_domain(domain: str) -> str:
     return domain.lower().strip().replace("www.", "")
 
 
 def should_skip_duplicate(domain: str, job: dict) -> bool:
+    init_worker()
     if not redis_client:
         return False
 
@@ -68,7 +88,7 @@ def should_skip_duplicate(domain: str, job: dict) -> bool:
     return True
 
 
-def upsert_domain_scan(session, *, domain: str, label: str, confidence: float, target_cse: str, source: str) -> None:
+def upsert_domain_scan(session, *, domain: str, label: str, confidence: float, target_cse: str, source: str, lifecycle_state: str = "PROCESSING") -> None:
     existing = session.query(DomainScan).filter_by(domain=domain).first()
     if existing:
         existing.label = label
@@ -76,6 +96,7 @@ def upsert_domain_scan(session, *, domain: str, label: str, confidence: float, t
         existing.target_cse = target_cse
         existing.scan_date = datetime.utcnow()
         existing.source = source
+        existing.lifecycle_state = lifecycle_state
         return
 
     session.add(
@@ -86,11 +107,13 @@ def upsert_domain_scan(session, *, domain: str, label: str, confidence: float, t
             target_cse=target_cse,
             source=source,
             scan_date=datetime.utcnow(),
+            lifecycle_state=lifecycle_state
         )
     )
 
 
 def enqueue_visual_analysis(domain: str, result: dict, source: str) -> None:
+    init_worker()
     if not visual_queue:
         logger.warning("visual_queue_unavailable", domain=domain)
         metrics.increment("herald_visual_enqueue_degraded_total", reason="queue_unavailable")
@@ -121,6 +144,7 @@ def enqueue_visual_analysis(domain: str, result: dict, source: str) -> None:
 
 
 def process_domain(job_data: dict) -> None:
+    init_worker()
     domain = job_data.get("domain")
     if not domain:
         raise ValueError("job is missing required domain")
@@ -131,7 +155,29 @@ def process_domain(job_data: dict) -> None:
     bind_contextvars(trace_id=job_data.get("trace_id"), job_id=job_data.get("job_id"))
     logger.info("processing_domain", domain=domain, target_cse=target_cse, source=source)
 
+    queue_wait_ms = int((time.time() - job_data.get("enqueued_at", time.time())) * 1000) if job_data.get("enqueued_at") else 0
+    emitter.emit_event(
+        event_type="JOB_ACCEPTED", 
+        payload={"domain": domain, "job_id": job_data.get("job_id")}, 
+        priority="LOW", 
+        trace_id=job_data.get("trace_id")
+    )
+
     session = SessionLocal()
+    start_time = time.time()
+    
+    # SSRF Protection Check
+    original_url = job_data.get("original_url", f"http://{domain}")
+    try:
+        validate_url_safe(original_url)
+    except SSRFProtectionError as exc:
+        logger.warning("domain_rejected_ssrf", domain=domain, error=str(exc))
+        upsert_domain_scan(session, domain=domain, label="Rejected", confidence=1.0, target_cse=target_cse, source=source, lifecycle_state="FAILED")
+        session.commit()
+        session.close()
+        clear_contextvars()
+        return
+
     try:
         with Timer("herald_domain_processing_seconds", worker="domain"):
             clean_domain = normalize_domain(domain)
@@ -160,6 +206,22 @@ def process_domain(job_data: dict) -> None:
             if result.get("visual_analysis_required"):
                 enqueue_visual_analysis(domain, result, source)
 
+        duration_ms = int((time.time() - start_time) * 1000)
+        emitter.emit_trace_span(
+            name="Lexical Analysis", 
+            status="OK", 
+            duration_ms=duration_ms, 
+            queue_wait_ms=queue_wait_ms, 
+            trace_id=job_data.get("trace_id"),
+            retry_count=int(job_data.get("attempts", 0))
+        )
+        emitter.emit_verdict(
+            domain=domain, 
+            verdict=label.upper(), 
+            confidence=confidence, 
+            trace_id=job_data.get("trace_id")
+        )
+
         logger.info(
             "domain_processed",
             domain=domain,
@@ -168,10 +230,22 @@ def process_domain(job_data: dict) -> None:
             analysis_type=result.get("analysis_type"),
         )
         metrics.increment("herald_jobs_processed_total", worker="domain", status="success")
-    except SQLAlchemyError:
+    except SQLAlchemyError as exc:
         session.rollback()
         metrics.increment("herald_jobs_processed_total", worker="domain", status="database_error")
         logger.exception("database_save_failed", domain=domain)
+        
+        emitter.emit_event(
+            event_type="DATABASE_PERSISTENCE_FAILED", 
+            payload={"domain": domain, "error": str(exc)}, 
+            priority="HIGH", 
+            severity="CRITICAL",
+            trace_id=job_data.get("trace_id")
+        )
+        
+        if "OperationalError" in str(type(exc)) or "no such column" in str(exc):
+            raise ValueError(f"SCHEMA_MISMATCH: {str(exc)}") from exc
+            
         raise
     finally:
         session.close()
@@ -179,6 +253,7 @@ def process_domain(job_data: dict) -> None:
 
 
 def start_queue_worker() -> None:
+    init_worker()
     logger.info("worker_started", queue=DOMAIN_ANALYSIS_QUEUE.ready)
     if not redis_client or not domain_queue:
         logger.error("redis_not_available", service="queue_worker")
@@ -214,7 +289,17 @@ def start_queue_worker() -> None:
                 error=str(exc),
             )
             if leased_job_json and job_data:
-                domain_queue.retry_or_dlq(leased_job_json, job_data, exc)
+                emitter.emit_event(
+                    event_type="RETRY_TRIGGERED", 
+                    payload={"domain": job_data.get("domain"), "error": str(exc)}, 
+                    priority="MEDIUM", 
+                    severity="WARNING",
+                    trace_id=job_data.get("trace_id")
+                )
+                if "SCHEMA_MISMATCH" in str(exc):
+                    domain_queue.send_to_dlq(leased_job_json, job_data, exc)
+                else:
+                    domain_queue.retry_or_dlq(leased_job_json, job_data, exc)
             time.sleep(1)
 
 

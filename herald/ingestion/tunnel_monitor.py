@@ -1,12 +1,12 @@
-﻿import certstream
+import certstream
 import logging
 import sys
 import os
 import time
+import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from herald.core.cv_ocr_analyzer import CVOCRAnalyzer
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(name)s %(asctime)s - %(message)s')
 
@@ -15,7 +15,6 @@ TUNNEL_DOMAINS = [
     ".trycloudflare.com", ".loca.lt", ".serveo.net", ".onrender.com", ".workers.dev"
 ]
 
-analyzer = CVOCRAnalyzer()
 executor = ThreadPoolExecutor(max_workers=3)  # Keep low to avoid massive concurrent browser spawning
 
 TARGET_CSES = [
@@ -27,12 +26,49 @@ TARGET_CSES = [
 
 def analyze_tunnel_domain(domain):
     logging.info(f"Checking tunnel domain: {domain}")
-    # We check the most critical assets to see if the tunnel is spoofing them
+    from herald.core.playwright_analyzer import PlaywrightVisualAnalyzer
+    analyzer = PlaywrightVisualAnalyzer()
+    
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(analyzer.run_analysis(domain))
+        loop.close()
+    except Exception as e:
+        logging.error(f"Error analyzing tunnel domain {domain}: {e}")
+        return
+        
+    if not result.get("success"):
+        logging.warning(f"Failed to capture screenshot/OCR for tunnel domain {domain}: {result.get('error')}")
+        return
+        
+    ocr_text = result.get("ocr_text", "").lower()
+    
     for cse in TARGET_CSES:
-        result = analyzer.analyze_domain(domain, cse, initial_confidence=0.5)
-        if result.get('cv_ocr_confirmed'):
+        keywords = []
+        if "sbi" in cse.lower() or "state bank" in cse.lower():
+            keywords = ["sbi", "state bank"]
+        elif "hdfc" in cse.lower():
+            keywords = ["hdfc"]
+        elif "icici" in cse.lower():
+            keywords = ["icici"]
+        elif "irctc" in cse.lower() or "railway" in cse.lower():
+            keywords = ["irctc", "railway"]
+        elif "nic" in cse.lower() or "informatics" in cse.lower():
+            keywords = ["nic", "national informatics"]
+        elif "pnb" in cse.lower() or "punjab national" in cse.lower():
+            keywords = ["pnb", "punjab national"]
+        elif "bob" in cse.lower() or "baroda" in cse.lower():
+            keywords = ["bob", "bank of baroda"]
+        elif "airtel" in cse.lower():
+            keywords = ["airtel"]
+        elif "iocl" in cse.lower() or "indian oil" in cse.lower():
+            keywords = ["iocl", "indian oil"]
+            
+        if any(kw in ocr_text for kw in keywords):
             logging.critical(f"ðŸš¨ TUNNEL PHISHING DETECTED: {domain} masquerading as {cse}")
             return
+            
     logging.info(f"âœ… Tunnel domain {domain} is clean.")
 
 def print_callback(message, context):

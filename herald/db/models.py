@@ -17,6 +17,12 @@ class DomainScan(Base):
     confidence = Column(Float)
     is_live = Column(Boolean, default=False)
     analyst_verdict = Column(String, nullable=True)
+    
+    # Real Investigation Fields
+    lifecycle_state = Column(String, default="QUEUED") # QUEUED, PROCESSING, SCREENSHOT_COMPLETE, OCR_COMPLETE, VERDICT_READY, FAILED, DEGRADED, DLQ
+    screenshot_path = Column(String, nullable=True)
+    ocr_text = Column(String, nullable=True)
+    dns_records = Column(String, nullable=True) # JSON stored as string for simplicity
 
 class User(Base):
     __tablename__ = 'users'

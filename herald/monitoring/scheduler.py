@@ -6,9 +6,7 @@ import json
 import logging
 import os
 
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy import create_engine
-from herald.db.models import DomainScan, DATABASE_URL
+from herald.db.models import DomainScan, SessionLocal
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s')
 
@@ -16,17 +14,24 @@ logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
 
-try:
-    redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
-    redis_client.ping()
-    logging.info("Scheduler connected to Redis.")
-except redis.ConnectionError:
-    logging.warning("Could not connect to Redis. Ensure Redis is running for production.")
-    redis_client = None
+_redis_client = None
 
-# Connect DB
-engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+def get_redis_client():
+    global _redis_client
+    if _redis_client is None:
+        try:
+            _redis_client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+            _redis_client.ping()
+            logging.info("Scheduler connected to Redis.")
+        except redis.ConnectionError:
+            logging.warning("Could not connect to Redis. Ensure Redis is running for production.")
+            _redis_client = None
+    return _redis_client
+
+def __getattr__(name):
+    if name == 'redis_client':
+        return get_redis_client()
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 def check_suspected_domains(n_days=7):
     """

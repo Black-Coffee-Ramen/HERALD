@@ -134,6 +134,19 @@ class RedisReliableQueue:
             delay_seconds=delay,
         )
 
+    def send_to_dlq(self, leased_job_json: str, job: dict[str, Any], error: Exception) -> None:
+        self.client.lrem(self.names.processing, 1, leased_job_json)
+        job["last_error"] = str(error)
+        job["last_failed_at"] = time.time()
+        job.pop("lease_expires_at", None)
+        self.client.rpush(self.names.dlq, json.dumps(job, sort_keys=True))
+        logger.error(
+            "queue_job_dead_lettered_immediate",
+            queue=self.names.ready,
+            job_id=job.get("job_id"),
+            error=str(error),
+        )
+
     def promote_due_jobs(self, *, limit: int = 100) -> int:
         now = time.time()
         due_jobs = self.client.zrangebyscore(self.names.delayed, 0, now, start=0, num=limit)

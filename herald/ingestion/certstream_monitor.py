@@ -1,4 +1,4 @@
-﻿import certstream
+import certstream
 import json
 import redis
 import logging
@@ -20,14 +20,26 @@ from herald.utils.cse_mapper import map_phishing_domain_to_cse
 
 logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(message)s')
 
-# Connect to Redis
-try:
-    redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-    redis_client.ping()
-    logging.info("Connected to Redis queue.")
-except redis.ConnectionError:
-    logging.warning("Could not connect to Redis. Ensure Redis is running for production.")
-    redis_client = None
+# Connect to Redis lazily
+_redis_client = None
+
+def get_redis_client():
+    global _redis_client
+    if _redis_client is None:
+        try:
+            redis_host = os.getenv("REDIS_HOST", "localhost")
+            _redis_client = redis.Redis(host=redis_host, port=6379, db=0, decode_responses=True)
+            _redis_client.ping()
+            logging.info("Connected to Redis queue.")
+        except redis.ConnectionError:
+            logging.warning("Could not connect to Redis. Ensure Redis is running for production.")
+            _redis_client = None
+    return _redis_client
+
+def __getattr__(name):
+    if name == 'redis_client':
+        return get_redis_client()
+    raise AttributeError(f"module {__name__} has no attribute {name}")
 
 # We can cache the CSE list if we need to load it
 # For now, we will rely on the direct mapping logic from cse_mapper

@@ -1,7 +1,12 @@
-from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, Security
+from fastapi import FastAPI, BackgroundTasks, HTTPException, Depends, Security, WebSocket, WebSocketDisconnect, Request
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from fastapi.responses import PlainTextResponse, Response
+import asyncio
+import redis.asyncio as aioredis
 import redis
 import json
 import logging
@@ -9,16 +14,17 @@ import time
 import uuid
 from datetime import datetime
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy import create_engine, text
 import sys
 import os
 from jose import JWTError, jwt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
-from herald.db.models import DomainScan, User, DATABASE_URL, SessionLocal, init_db, Whitelist
+from sqlalchemy import inspect
+from herald.db.models import DomainScan, User, DATABASE_URL, SessionLocal, init_db, Whitelist, engine
 
 # Initialize database tables
-init_db()
 from herald.core.auth import verify_password, get_password_hash, create_access_token, SECRET_KEY, ALGORITHM
 from herald.utils.logging_config import setup_logging
 from herald.utils.export import generate_pdf_report
@@ -27,22 +33,35 @@ from herald.monitoring.resilience import CircuitBreakerConfig, RedisCircuitBreak
 from herald.monitoring.redis_queue import DOMAIN_ANALYSIS_QUEUE, VISUAL_ANALYSIS_QUEUE, RedisReliableQueue
 import structlog
 from structlog.contextvars import bind_contextvars, clear_contextvars
-
-setup_logging()
-logger = structlog.get_logger(__name__)
-
 from fastapi.middleware.cors import CORSMiddleware
 
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-from fastapi import Request
+app = FastAPI()
 
-app = FastAPI(title="Phishing Detection API", version="1.0.0")
+@app.on_event("startup")
+async def startup_event():
+    init_db()
+    logger.info("database_connected", database="sqlite")
+    inspector = inspect(engine)
+    
+    if not inspector.has_table("domain_scans"):
+        logger.warning("database_initialized")
+        return
+        
+    columns = [col['name'] for col in inspector.get_columns("domain_scans")]
+    required_columns = ["lifecycle_state", "screenshot_path", "ocr_text", "dns_records"]
+    
+    missing_columns = [col for col in required_columns if col not in columns]
+    if missing_columns:
+        logger.error("schema_mismatch_detected", missing=missing_columns)
+        logger.error("Schema mismatch detected! Please run `python setup_db.py` to migrate.")
+        sys.exit(1)
+    else:
+        logger.info("schema_validated")
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+logger = structlog.get_logger()
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,23 +73,122 @@ app.add_middleware(
 
 # Redis configuration
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-try:
-    redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
-    redis_client.ping()
-except redis.ConnectionError:
-    logging.warning("Could not connect to Redis from API layer.")
-    redis_client = None
 
-domain_queue = RedisReliableQueue(redis_client, DOMAIN_ANALYSIS_QUEUE) if redis_client else None
-visual_queue = RedisReliableQueue(redis_client, VISUAL_ANALYSIS_QUEUE) if redis_client else None
-visual_circuit = (
-    RedisCircuitBreaker(redis_client, CircuitBreakerConfig(name="visual_analysis"))
-    if redis_client
-    else None
-)
+_redis_client = None
+_domain_queue = None
+_visual_queue = None
+_visual_circuit = None
+
+def get_redis():
+    global _redis_client
+    if _redis_client is None:
+        try:
+            _redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+            _redis_client.ping()
+        except redis.ConnectionError:
+            logging.warning("Could not connect to Redis from API layer.")
+            _redis_client = None
+    return _redis_client
+
+def get_domain_queue():
+    global _domain_queue
+    if _domain_queue is None:
+        client = get_redis()
+        _domain_queue = RedisReliableQueue(client, DOMAIN_ANALYSIS_QUEUE) if client else None
+    return _domain_queue
+
+def get_visual_queue():
+    global _visual_queue
+    if _visual_queue is None:
+        client = get_redis()
+        _visual_queue = RedisReliableQueue(client, VISUAL_ANALYSIS_QUEUE) if client else None
+    return _visual_queue
+
+def get_visual_circuit():
+    global _visual_circuit
+    if _visual_circuit is None:
+        client = get_redis()
+        _visual_circuit = (
+            RedisCircuitBreaker(client, CircuitBreakerConfig(name="visual_analysis"))
+            if client
+            else None
+        )
+    return _visual_circuit
+
+def __getattr__(name):
+    if name == 'redis_client':
+        return get_redis()
+    elif name == 'domain_queue':
+        return get_domain_queue()
+    elif name == 'visual_queue':
+        return get_visual_queue()
+    elif name == 'visual_circuit':
+        return get_visual_circuit()
+    raise AttributeError(f"module {__name__} has no attribute {name}")
+
 DOMAIN_QUEUE_MAX_READY = int(os.getenv("DOMAIN_QUEUE_MAX_READY", "5000"))
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/token")
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+        self.pubsub_task = None
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        
+        # Start the pubsub listener only when the first client connects
+        if not self.pubsub_task or self.pubsub_task.done():
+            self.pubsub_task = asyncio.create_task(self.listen_to_redis())
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: str):
+        for connection in self.active_connections:
+            try:
+                await connection.send_text(message)
+            except Exception:
+                # If sending fails, we just drop the connection later via disconnect
+                pass
+
+    async def listen_to_redis(self):
+        try:
+            # We use async redis for the websocket pub/sub listener
+            async_redis = await aioredis.from_url(f"redis://{REDIS_HOST}:6379/0", decode_responses=True)
+            pubsub = async_redis.pubsub()
+            await pubsub.subscribe("herald.telemetry")
+            
+            logger.info("telemetry_pubsub_listener_started")
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    # Broadcast the JSON string directly to all clients
+                    await self.broadcast(message["data"])
+                    
+                # Exit loop if no clients left
+                if not self.active_connections:
+                    break
+        except Exception as e:
+            logger.error("telemetry_pubsub_listener_failed", error=str(e))
+        finally:
+            if 'async_redis' in locals():
+                await async_redis.aclose()
+
+manager = ConnectionManager()
+
+@app.websocket("/ws/telemetry")
+async def websocket_telemetry_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Keep connection open, handle client heartbeats if needed
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
 
 
 @app.middleware("http")
@@ -115,6 +233,7 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
         if username is None:
             raise credentials_exception
     except JWTError:
+
         raise credentials_exception
     user = db.query(User).filter(User.username == username).first()
     if user is None:
@@ -124,6 +243,9 @@ async def get_current_user(db: Session = Depends(get_db), token: str = Depends(o
 class ScanRequest(BaseModel):
     domain: str
     target_cse: str = "Unknown"
+
+class InvestigateRequest(BaseModel):
+    url: str
 
 # Auth Schemas
 class UserCreate(BaseModel):
@@ -197,6 +319,45 @@ def trigger_scan(request: Request, scan_req: ScanRequest, current_user: User = D
     logger.info("domain_queued", domain=scan_req.domain, user=current_user.username, job_id=job_id)
     
     return {"status": "ok", "job_id": job_id, "message": f"Domain {scan_req.domain} queued for analysis"}
+
+@app.post("/api/investigate")
+@limiter.limit("60/minute")
+def investigate_url(request: Request, inv_req: InvestigateRequest, current_user: User = Depends(get_current_user)):
+    """
+    Push a URL into the real investigation pipeline.
+    """
+    if not domain_queue:
+        logger.error("redis_offline", action="investigate_url")
+        raise HTTPException(status_code=500, detail="Redis queue is offline")
+
+    domain_depth = domain_queue.depth()
+    if domain_depth["ready"] >= DOMAIN_QUEUE_MAX_READY:
+        raise HTTPException(status_code=429, detail="Investigation queue is under pressure; retry later")
+        
+    trace_id = request.headers.get("x-request-id") or str(uuid.uuid4())
+    
+    # Normalize URL to domain
+    domain = inv_req.url
+    if "://" in domain:
+        domain = domain.split("://")[1].split("/")[0]
+        
+    job_id = domain_queue.enqueue({
+        "domain": domain,
+        "original_url": inv_req.url,
+        "source": "api_investigate",
+        "target_cse": "Unknown",
+        "trace_id": trace_id,
+        "lifecycle_state": "QUEUED"
+    })
+    logger.info("investigation_queued", url=inv_req.url, domain=domain, user=current_user.username, job_id=job_id)
+    
+    return {
+        "status": "ok",
+        "job_id": job_id,
+        "trace_id": trace_id,
+        "domain": domain,
+        "lifecycle_state": "QUEUED"
+    }
 
 
 @app.get("/metrics", response_class=PlainTextResponse)
@@ -327,7 +488,12 @@ def export_json(domain: str, db: Session = Depends(get_db), current_user: User =
         "label": scan.label,
         "confidence": scan.confidence,
         "is_live": scan.is_live,
-        "analyst_verdict": scan.analyst_verdict
+
+        "analyst_verdict": scan.analyst_verdict,
+        "lifecycle_state": scan.lifecycle_state,
+        "screenshot_path": scan.screenshot_path,
+        "ocr_text": scan.ocr_text,
+        "dns_records": scan.dns_records
     }
 
 @app.get("/api/export/{domain}/pdf")
@@ -343,61 +509,85 @@ def export_pdf(domain: str, db: Session = Depends(get_db), current_user: User = 
     return Response(content=pdf_buffer.getvalue(), media_type="application/pdf", headers=headers)
 
 @app.get("/api/health")
-def health_check(db: Session = Depends(get_db)):
-    health = {
-        "status": "healthy",
-        "services": {
-            "redis": {"connected": redis_client is not None},
-            "database": {"connected": False},
-            "worker": {"status": "unknown"}
-        }
-    }
-    
-    # Check DB
+def health_check():
+    """Lightweight liveness check."""
+    return {"status": "ok"}
+
+@app.get("/api/ready")
+def readiness_check(db: Session = Depends(get_db)):
+    """Readiness check: Redis, DB, telemetry, queues, websockets."""
+    status = "ok"
+    reasons = []
+
+    # Database
     try:
         db.execute(text("SELECT 1"))
-        health["services"]["database"]["connected"] = True
+        db_ok = True
     except Exception as e:
-        health["status"] = "degraded"
-        health["services"]["database"]["error"] = str(e)
-        
-    # Check Redis Queue Depth and Worker
-    if redis_client:
-        try:
-            if domain_queue:
-                health["services"]["redis"]["domain_queue"] = domain_queue.depth()
-            if visual_queue:
-                health["services"]["redis"]["visual_queue"] = visual_queue.depth()
-            if visual_circuit:
-                health["services"]["visual_circuit"] = visual_circuit.state()
-            
-            last_seen = redis_client.get("worker:domain:last_seen")
-            if last_seen:
-                health["services"]["worker"]["last_seen"] = last_seen
-                # If last seen > 5 minutes ago, mark as unhealthy
-                last_seen_dt = datetime.fromisoformat(last_seen)
-                if (datetime.utcnow() - last_seen_dt).total_seconds() > 300:
-                    health["services"]["worker"]["status"] = "stale"
-                    health["status"] = "degraded"
-                else:
-                    health["services"]["worker"]["status"] = "active"
-            else:
-                health["services"]["worker"]["status"] = "not_seen"
+        db_ok = False
+        status = "degraded"
+        reasons.append(f"db_error: {str(e)}")
 
-            visual_last_seen = redis_client.get("worker:visual:last_seen")
-            health["services"]["visual_worker"] = {"status": "not_seen"}
-            if visual_last_seen:
-                health["services"]["visual_worker"]["last_seen"] = visual_last_seen
-                visual_last_seen_dt = datetime.fromisoformat(visual_last_seen)
-                if (datetime.utcnow() - visual_last_seen_dt).total_seconds() > 300:
-                    health["services"]["visual_worker"]["status"] = "stale"
-                    health["status"] = "degraded"
-                else:
-                    health["services"]["visual_worker"]["status"] = "active"
-        except Exception as e:
-            health["services"]["redis"]["error"] = str(e)
-            
-    return health
+    # Redis
+    redis_ok = redis_client is not None
+    if not redis_ok:
+        status = "degraded"
+        reasons.append("redis_disconnected")
+        
+    return {
+        "status": status,
+        "database": "connected" if db_ok else "disconnected",
+        "redis": "connected" if redis_ok else "disconnected",
+        "telemetry_subsystem": "ready" if manager.pubsub_task else "inactive",
+        "websocket_clients": len(manager.active_connections),
+        "reasons": reasons
+    }
+
+@app.get("/api/metrics-summary")
+def metrics_summary():
+    """Operational metrics summaries for dashboard consumption."""
+    summary = {
+        "queues": {},
+        "workers": {},
+        "browser_pressure": {},
+        "circuit_breakers": {}
+    }
+
+    if not redis_client:
+        return {"status": "error", "message": "Redis unavailable"}
+
+    # Queue Metrics
+    if domain_queue:
+        summary["queues"]["lexical"] = domain_queue.depth()
+    if visual_queue:
+        summary["queues"]["visual"] = visual_queue.depth()
+        
+    # Active Worker Counts (Lightweight via Redis last_seen)
+    domain_last_seen = redis_client.get("worker:domain:last_seen")
+    visual_last_seen = redis_client.get("worker:visual:last_seen")
+    
+    def is_active(ts_str):
+        if not ts_str: return False
+        try:
+            return (datetime.utcnow() - datetime.fromisoformat(ts_str)).total_seconds() < 120
+        except: return False
+
+    summary["workers"]["lexical_active"] = 1 if is_active(domain_last_seen) else 0
+    summary["workers"]["visual_active"] = 1 if is_active(visual_last_seen) else 0
+
+    # Browser Pressure Metrics (Aggregated from Visual Worker Telemetry)
+    # Since we are using lightweight Redis counters:
+    summary["browser_pressure"] = {
+        "concurrent_sessions": int(redis_client.get("browser:active_sessions") or 0),
+        "saturation_pct": int(redis_client.get("browser:saturation_pct") or 0),
+        "crashes_1m": int(redis_client.get("browser:crashes_1m") or 0),
+        "timeouts_1m": int(redis_client.get("browser:timeouts_1m") or 0)
+    }
+
+    if visual_circuit:
+        summary["circuit_breakers"]["visual_analysis"] = visual_circuit.state()
+
+    return summary
 
 if __name__ == "__main__":
     import uvicorn
