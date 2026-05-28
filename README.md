@@ -606,7 +606,6 @@ MIT License
 
 Copyright (c) 2026 Athiyo Chakma
 
-<<<<<<< HEAD
 ## Author
 
 <div align="center">
@@ -634,7 +633,6 @@ SOFTWARE.
 
 <div align="center">
 
->>>>>>> c5cfecfa5b8d88f903eab9e8cc2e13dd2791e761
 **Athiyo Chakma**  
 CSE Undergraduate · IIIT Delhi  
 Mail: athiyo22118@iiitd.ac.in

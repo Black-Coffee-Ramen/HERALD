@@ -18,19 +18,19 @@ outputs/
 *.ppt
 *.pptx
 
-# Models (large binary files — track separately with Git LFS if needed)
-*.pkl
-*.joblib
-*.h5
-*.hdf5
-*.onnx
-*.pt
-*.pth
+# # Models (large binary files — track separately with Git LFS if needed)
+# *.pkl
+# *.joblib
+# *.h5
+# *.hdf5
+# *.onnx
+# *.pt
+# *.pth
 
-# Evidence directories
-evidences_temp/
-final_evidence/
-evidence/
+# # Evidence directories
+# evidences_temp/
+# final_evidence/
+# evidence/
 
 # Secrets
 .env

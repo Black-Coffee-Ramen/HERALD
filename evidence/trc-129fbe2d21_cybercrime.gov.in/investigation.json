@@ -1,0 +1,208 @@
+{
+  "completed_at": "2026-05-25T08:02:47+00:00",
+  "dns": {
+    "a_records": [
+      "45.127.75.210"
+    ],
+    "asn": null,
+    "creation_date": "2018-06-26T09:45:02+00:00",
+    "domain_age_days": 2889,
+    "errors": [
+      "MX: The DNS response does not contain an answer to the question: cybercrime.gov.in. IN MX"
+    ],
+    "ip_metadata": [
+      {
+        "family": "IPv4",
+        "ip": "45.127.75.210"
+      }
+    ],
+    "mx_records": [],
+    "nameservers": [
+      "ns1.nic.in",
+      "ns10.nic.in",
+      "ns2.nic.in",
+      "ns7.nic.in"
+    ],
+    "registrar": "National Informatics Centre",
+    "txt_records": [
+      "ED0951339AF00E8520E5CBD39DBD40EF",
+      "v=spf1 -all"
+    ]
+  },
+  "domain": "cybercrime.gov.in",
+  "elapsed_ms": 5569,
+  "errors": [],
+  "evidence_dir": "evidence\\trc-129fbe2d21_cybercrime.gov.in",
+  "input": "https://cybercrime.gov.in/",
+  "lexical": {
+    "features": {
+      "brand_keyword_position": 1.0,
+      "brand_to_reg_length_ratio": 1.0,
+      "consonant_ratio": 0.5882352941176471,
+      "digit_ratio": 0.0,
+      "domain_length": 17.0,
+      "dot_ratio": 0.11764705882352941,
+      "entropy": 3.4992275471326932,
+      "has_account": 0.0,
+      "has_auth": 0.0,
+      "has_banking": 0.0,
+      "has_brand_in_path": 0.0,
+      "has_confirm": 0.0,
+      "has_cse_keyword_in_subdomain": 0.0,
+      "has_https": 0.0,
+      "has_ip": 0.0,
+      "has_login": 0.0,
+      "has_paypal": 0.0,
+      "has_repeated_digits": 0.0,
+      "has_secure": 0.0,
+      "has_security": 0.0,
+      "has_signin": 0.0,
+      "has_support": 0.0,
+      "has_update": 0.0,
+      "has_verify": 0.0,
+      "hyphen_ratio": 0.0,
+      "is_common_tld": 0.0,
+      "is_malicious_gtld": 0.0,
+      "is_punycode": 0.0,
+      "legitimate_trigram_count": 1.0,
+      "longest_consonant_run": 3.0,
+      "max_repeated_trigram": 1.0,
+      "min_brand_levenshtein": 0.5,
+      "num_hyphens": 0.0,
+      "num_special_chars": 0.0,
+      "registered_domain_length": 6.0,
+      "special_char_ratio": 0.0,
+      "subdomain_count": 1.0,
+      "subdomain_depth": 1.0,
+      "suspicious_trigram_count": 0.0,
+      "tld_length": 2.0,
+      "trigram_suspicion_ratio": 0.0,
+      "unique_trigram_ratio": 1.0,
+      "vowel_ratio": 0.29411764705882354
+    },
+    "risk_factors": [
+      {
+        "detail": "Domain contains a monitored brand or sector keyword.",
+        "name": "Brand keyword",
+        "score_impact": 0.2,
+        "severity": "medium"
+      }
+    ],
+    "score": 0.35,
+    "suspicious_keywords": []
+  },
+  "phishing_score": 0.35,
+  "risk_factors": [
+    {
+      "detail": "Domain contains a monitored brand or sector keyword.",
+      "name": "Brand keyword",
+      "score_impact": 0.2,
+      "severity": "medium"
+    },
+    {
+      "detail": "No TLS certificate could be inspected on port 443.",
+      "name": "No TLS certificate",
+      "score_impact": 0.0,
+      "severity": "low"
+    },
+    {
+      "detail": "Visual evidence was captured and no suspicious OCR phrases were found.",
+      "name": "Screenshot captured",
+      "score_impact": 0.0,
+      "severity": "info"
+    }
+  ],
+  "stages": [
+    {
+      "details": {
+        "allow_private": false,
+        "private_overrides": []
+      },
+      "duration_ms": 15,
+      "name": "SSRF validation",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "keywords": [],
+        "score": 0.35
+      },
+      "duration_ms": 45,
+      "name": "Lexical analysis",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "a_records": [
+          "45.127.75.210"
+        ],
+        "domain_age_days": 2889,
+        "registrar": "National Informatics Centre"
+      },
+      "duration_ms": 2269,
+      "name": "DNS and WHOIS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "has_tls": false,
+        "issuer": null,
+        "suspicious": false
+      },
+      "duration_ms": 129,
+      "name": "TLS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "ocr_suspicious": false,
+        "screenshot_path": "evidence\\trc-129fbe2d21_cybercrime.gov.in\\screenshots\\homepage.png",
+        "success": true
+      },
+      "duration_ms": 3109,
+      "name": "Screenshot and OCR",
+      "status": "ok"
+    }
+  ],
+  "started_at": "2026-05-25T08:02:41+00:00",
+  "summary": {
+    "artifact_count": 3,
+    "degraded_stages": [],
+    "headline": "cybercrime.gov.in is Suspected with score 0.35.",
+    "why_flagged": [
+      "Domain contains a monitored brand or sector keyword.",
+      "No TLS certificate could be inspected on port 443."
+    ]
+  },
+  "tls": {
+    "days_remaining": null,
+    "domain_in_san": false,
+    "errors": [
+      "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1028)"
+    ],
+    "has_tls": false,
+    "issuer": null,
+    "not_after": null,
+    "not_before": null,
+    "san": [],
+    "subject": null,
+    "suspicious": false
+  },
+  "trace_id": "trc-129fbe2d21",
+  "url": "https://cybercrime.gov.in/",
+  "verdict": "Suspected",
+  "visual": {
+    "ocr_findings": {
+      "is_suspicious": false,
+      "ocr_risk_score": 0,
+      "phrases_found": []
+    },
+    "ocr_text": "",
+    "report_paths": {
+      "json": "evidence\\trc-129fbe2d21_cybercrime.gov.in\\investigation.json",
+      "markdown": "evidence\\trc-129fbe2d21_cybercrime.gov.in\\report.md"
+    },
+    "screenshot_path": "evidence\\trc-129fbe2d21_cybercrime.gov.in\\screenshots\\homepage.png",
+    "success": true
+  }
+}

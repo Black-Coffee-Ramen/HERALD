@@ -1,0 +1,201 @@
+{
+  "completed_at": "2026-05-25T08:00:13+00:00",
+  "dns": {
+    "a_records": [],
+    "asn": null,
+    "creation_date": null,
+    "domain_age_days": null,
+    "errors": [
+      "whois: Whois command returned no output",
+      "A: The DNS query name does not exist: 127.0.0.1.",
+      "MX: The DNS query name does not exist: 127.0.0.1.",
+      "TXT: The DNS query name does not exist: 127.0.0.1."
+    ],
+    "ip_metadata": [
+      {
+        "family": "IPv4",
+        "ip": "127.0.0.1"
+      }
+    ],
+    "mx_records": [],
+    "nameservers": [],
+    "registrar": null,
+    "txt_records": []
+  },
+  "domain": "127.0.0.1",
+  "elapsed_ms": 2226,
+  "errors": [],
+  "evidence_dir": "evidence\\trc-d5e67a412d_127.0.0.1",
+  "input": "http://127.0.0.1",
+  "lexical": {
+    "features": {
+      "brand_keyword_position": 0.0,
+      "brand_to_reg_length_ratio": 0.0,
+      "consonant_ratio": 0.0,
+      "digit_ratio": 0.6666666666666666,
+      "domain_length": 9.0,
+      "dot_ratio": 0.3333333333333333,
+      "entropy": 2.197159723424149,
+      "has_account": 0.0,
+      "has_auth": 0.0,
+      "has_banking": 0.0,
+      "has_brand_in_path": 0.0,
+      "has_confirm": 0.0,
+      "has_cse_keyword_in_subdomain": 0.0,
+      "has_https": 0.0,
+      "has_ip": 1.0,
+      "has_login": 0.0,
+      "has_paypal": 0.0,
+      "has_repeated_digits": 0.0,
+      "has_secure": 0.0,
+      "has_security": 0.0,
+      "has_signin": 0.0,
+      "has_support": 0.0,
+      "has_update": 0.0,
+      "has_verify": 0.0,
+      "hyphen_ratio": 0.0,
+      "is_common_tld": 0.0,
+      "is_malicious_gtld": 0.0,
+      "is_punycode": 0.0,
+      "legitimate_trigram_count": 0.0,
+      "longest_consonant_run": 0.0,
+      "max_repeated_trigram": 0.0,
+      "min_brand_levenshtein": 1.0,
+      "num_hyphens": 0.0,
+      "num_special_chars": 0.0,
+      "registered_domain_length": 3.0,
+      "special_char_ratio": 0.0,
+      "subdomain_count": 2.0,
+      "subdomain_depth": 2.0,
+      "suspicious_trigram_count": 0.0,
+      "tld_length": 1.0,
+      "trigram_suspicion_ratio": 0.0,
+      "unique_trigram_ratio": 0.0,
+      "vowel_ratio": 0.0
+    },
+    "risk_factors": [
+      {
+        "detail": "Domain contains an elevated ratio of digits.",
+        "name": "Digit-heavy domain",
+        "score_impact": 0.15,
+        "severity": "low"
+      }
+    ],
+    "score": 0.2625,
+    "suspicious_keywords": []
+  },
+  "phishing_score": 0.2625,
+  "risk_factors": [
+    {
+      "detail": "Domain contains an elevated ratio of digits.",
+      "name": "Digit-heavy domain",
+      "score_impact": 0.15,
+      "severity": "low"
+    },
+    {
+      "detail": "No A records were resolved during investigation.",
+      "name": "DNS unresolved",
+      "score_impact": 0.0,
+      "severity": "medium"
+    },
+    {
+      "detail": "No TLS certificate could be inspected on port 443.",
+      "name": "No TLS certificate",
+      "score_impact": 0.0,
+      "severity": "low"
+    },
+    {
+      "detail": "Screenshot and OCR were intentionally skipped for this command.",
+      "name": "Visual analysis skipped",
+      "score_impact": 0.0,
+      "severity": "info"
+    }
+  ],
+  "stages": [
+    {
+      "details": {
+        "allow_private": true,
+        "private_overrides": [
+          {
+            "hostname": "127.0.0.1",
+            "reason": "loopback address",
+            "resolved_ip": "127.0.0.1",
+            "target": "http://127.0.0.1",
+            "trace_id": "trc-d5e67a412d"
+          }
+        ]
+      },
+      "duration_ms": 1,
+      "name": "SSRF validation",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "keywords": [],
+        "score": 0.2625
+      },
+      "duration_ms": 63,
+      "name": "Lexical analysis",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "a_records": [],
+        "domain_age_days": null,
+        "registrar": null
+      },
+      "duration_ms": 69,
+      "name": "DNS and WHOIS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "has_tls": false,
+        "issuer": null,
+        "suspicious": false
+      },
+      "duration_ms": 2090,
+      "name": "TLS intelligence",
+      "status": "ok"
+    }
+  ],
+  "started_at": "2026-05-25T08:00:11+00:00",
+  "summary": {
+    "artifact_count": 2,
+    "degraded_stages": [],
+    "headline": "127.0.0.1 is Likely Clean with score 0.2625.",
+    "why_flagged": [
+      "Domain contains an elevated ratio of digits.",
+      "No A records were resolved during investigation.",
+      "No TLS certificate could be inspected on port 443."
+    ]
+  },
+  "tls": {
+    "days_remaining": null,
+    "domain_in_san": false,
+    "errors": [
+      "[WinError 10061] No connection could be made because the target machine actively refused it"
+    ],
+    "has_tls": false,
+    "issuer": null,
+    "not_after": null,
+    "not_before": null,
+    "san": [],
+    "subject": null,
+    "suspicious": false
+  },
+  "trace_id": "trc-d5e67a412d",
+  "url": "http://127.0.0.1",
+  "verdict": "Likely Clean",
+  "visual": {
+    "ocr_findings": {},
+    "ocr_text": "",
+    "report_paths": {
+      "json": "evidence\\trc-d5e67a412d_127.0.0.1\\investigation.json",
+      "markdown": "evidence\\trc-d5e67a412d_127.0.0.1\\report.md"
+    },
+    "screenshot_path": null,
+    "skipped": true,
+    "success": false
+  }
+}

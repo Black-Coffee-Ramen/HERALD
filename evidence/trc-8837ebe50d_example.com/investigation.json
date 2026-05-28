@@ -1,0 +1,190 @@
+{
+  "completed_at": "2026-05-25T07:33:16+00:00",
+  "dns": {
+    "a_records": [
+      "172.66.147.243",
+      "104.20.23.154"
+    ],
+    "asn": null,
+    "creation_date": "1995-08-14T04:00:00+00:00",
+    "domain_age_days": 11242,
+    "errors": [],
+    "ip_metadata": [
+      {
+        "family": "IPv4",
+        "ip": "104.20.23.154"
+      },
+      {
+        "family": "IPv4",
+        "ip": "172.66.147.243"
+      }
+    ],
+    "mx_records": [
+      "0 ."
+    ],
+    "nameservers": [
+      "elliott.ns.cloudflare.com",
+      "hera.ns.cloudflare.com"
+    ],
+    "registrar": "RESERVED-Internet Assigned Numbers Authority",
+    "txt_records": [
+      "_k2n1y4vw3qtb4skdx9e7dxt97qrmmq9",
+      "v=spf1 -all"
+    ]
+  },
+  "domain": "example.com",
+  "elapsed_ms": 7561,
+  "errors": [],
+  "evidence_dir": "evidence\\trc-8837ebe50d_example.com",
+  "input": "https://example.com",
+  "lexical": {
+    "features": {
+      "brand_keyword_position": 0.0,
+      "brand_to_reg_length_ratio": 0.0,
+      "consonant_ratio": 0.5454545454545454,
+      "digit_ratio": 0.0,
+      "domain_length": 11.0,
+      "dot_ratio": 0.09090909090909091,
+      "entropy": 3.0957952550009344,
+      "has_account": 0.0,
+      "has_auth": 0.0,
+      "has_banking": 0.0,
+      "has_brand_in_path": 0.0,
+      "has_confirm": 0.0,
+      "has_cse_keyword_in_subdomain": 0.0,
+      "has_https": 0.0,
+      "has_ip": 0.0,
+      "has_login": 0.0,
+      "has_paypal": 0.0,
+      "has_repeated_digits": 0.0,
+      "has_secure": 0.0,
+      "has_security": 0.0,
+      "has_signin": 0.0,
+      "has_support": 0.0,
+      "has_update": 0.0,
+      "has_verify": 0.0,
+      "hyphen_ratio": 0.0,
+      "is_common_tld": 1.0,
+      "is_malicious_gtld": 0.0,
+      "is_punycode": 0.0,
+      "legitimate_trigram_count": 0.0,
+      "longest_consonant_run": 3.0,
+      "max_repeated_trigram": 1.0,
+      "min_brand_levenshtein": 0.6666666666666666,
+      "num_hyphens": 0.0,
+      "num_special_chars": 0.0,
+      "registered_domain_length": 11.0,
+      "special_char_ratio": 0.0,
+      "subdomain_count": 0.0,
+      "subdomain_depth": 0.0,
+      "suspicious_trigram_count": 0.0,
+      "tld_length": 3.0,
+      "trigram_suspicion_ratio": 0.0,
+      "unique_trigram_ratio": 1.0,
+      "vowel_ratio": 0.36363636363636365
+    },
+    "risk_factors": [],
+    "score": 0.1375,
+    "suspicious_keywords": []
+  },
+  "phishing_score": 0.1375,
+  "risk_factors": [
+    {
+      "detail": "Visual evidence was captured and no suspicious OCR phrases were found.",
+      "name": "Screenshot captured",
+      "score_impact": 0.0,
+      "severity": "info"
+    }
+  ],
+  "stages": [
+    {
+      "details": {},
+      "duration_ms": 11,
+      "name": "SSRF validation",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "keywords": [],
+        "score": 0.1375
+      },
+      "duration_ms": 67,
+      "name": "Lexical analysis",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "a_records": [
+          "172.66.147.243",
+          "104.20.23.154"
+        ],
+        "domain_age_days": 11242,
+        "registrar": "RESERVED-Internet Assigned Numbers Authority"
+      },
+      "duration_ms": 2046,
+      "name": "DNS and WHOIS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "has_tls": true,
+        "issuer": "countryName=US, organizationName=CLOUDFLARE, INC., commonName=Cloudflare TLS Issuing ECC CA 1",
+        "suspicious": false
+      },
+      "duration_ms": 153,
+      "name": "TLS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "ocr_suspicious": false,
+        "screenshot_path": "evidence\\trc-8837ebe50d_example.com\\screenshots\\homepage.png",
+        "success": true
+      },
+      "duration_ms": 5282,
+      "name": "Screenshot and OCR",
+      "status": "ok"
+    }
+  ],
+  "started_at": "2026-05-25T07:33:08+00:00",
+  "summary": {
+    "artifact_count": 3,
+    "degraded_stages": [],
+    "headline": "example.com is Likely Clean with score 0.1375.",
+    "why_flagged": [
+      "No strong phishing indicators were observed."
+    ]
+  },
+  "tls": {
+    "days_remaining": 37,
+    "domain_in_san": true,
+    "errors": [],
+    "has_tls": true,
+    "issuer": "countryName=US, organizationName=CLOUDFLARE, INC., commonName=Cloudflare TLS Issuing ECC CA 1",
+    "not_after": "Jul  1 21:24:46 2026 GMT",
+    "not_before": "Apr  2 21:18:57 2026 GMT",
+    "san": [
+      "example.com",
+      "*.example.com"
+    ],
+    "subject": "commonName=example.com",
+    "suspicious": false
+  },
+  "trace_id": "trc-8837ebe50d",
+  "url": "https://example.com",
+  "verdict": "Likely Clean",
+  "visual": {
+    "ocr_findings": {
+      "is_suspicious": false,
+      "ocr_risk_score": 0,
+      "phrases_found": []
+    },
+    "ocr_text": "",
+    "report_paths": {
+      "json": "evidence\\trc-8837ebe50d_example.com\\investigation.json",
+      "markdown": "evidence\\trc-8837ebe50d_example.com\\report.md"
+    },
+    "screenshot_path": "evidence\\trc-8837ebe50d_example.com\\screenshots\\homepage.png",
+    "success": true
+  }
+}

@@ -1,0 +1,196 @@
+{
+  "completed_at": "2026-05-25T08:12:44+00:00",
+  "dns": {
+    "a_records": [
+      "45.118.48.5",
+      "14.139.251.99"
+    ],
+    "asn": null,
+    "creation_date": "2011-01-20T11:27:08+00:00",
+    "domain_age_days": 5603,
+    "errors": [],
+    "ip_metadata": [
+      {
+        "family": "IPv4",
+        "ip": "14.139.251.99"
+      },
+      {
+        "family": "IPv4",
+        "ip": "45.118.48.5"
+      }
+    ],
+    "mx_records": [
+      "10 ASPMX2.GOOGLEMAIL.COM.",
+      "10 ASPMX3.GOOGLEMAIL.COM.",
+      "5 ALT1.ASPMX.L.GOOGLE.COM.",
+      "1 ASPMX.L.GOOGLE.COM.",
+      "5 ALT2.ASPMX.L.GOOGLE.COM."
+    ],
+    "nameservers": [
+      "dns1.dtu.ac.in",
+      "dns2.dtu.ac.in"
+    ],
+    "registrar": "ERNET India",
+    "txt_records": [
+      "v=spf1 include:_spf.google.com ~all"
+    ]
+  },
+  "domain": "dtu.ac.in",
+  "elapsed_ms": 10033,
+  "errors": [],
+  "evidence_dir": "evidence\\trc-91acc2264d_dtu.ac.in",
+  "input": "https://dtu.ac.in/",
+  "lexical": {
+    "features": {
+      "brand_keyword_position": 0.0,
+      "brand_to_reg_length_ratio": 0.0,
+      "consonant_ratio": 0.4444444444444444,
+      "digit_ratio": 0.0,
+      "domain_length": 9.0,
+      "dot_ratio": 0.2222222222222222,
+      "entropy": 2.9477027792200903,
+      "has_account": 0.0,
+      "has_auth": 0.0,
+      "has_banking": 0.0,
+      "has_brand_in_path": 0.0,
+      "has_confirm": 0.0,
+      "has_cse_keyword_in_subdomain": 0.0,
+      "has_https": 0.0,
+      "has_ip": 0.0,
+      "has_login": 0.0,
+      "has_paypal": 0.0,
+      "has_repeated_digits": 0.0,
+      "has_secure": 0.0,
+      "has_security": 0.0,
+      "has_signin": 0.0,
+      "has_support": 0.0,
+      "has_update": 0.0,
+      "has_verify": 0.0,
+      "hyphen_ratio": 0.0,
+      "is_common_tld": 0.0,
+      "is_malicious_gtld": 0.0,
+      "is_punycode": 0.0,
+      "legitimate_trigram_count": 0.0,
+      "longest_consonant_run": 2.0,
+      "max_repeated_trigram": 0.0,
+      "min_brand_levenshtein": 0.75,
+      "num_hyphens": 0.0,
+      "num_special_chars": 0.0,
+      "registered_domain_length": 5.0,
+      "special_char_ratio": 0.0,
+      "subdomain_count": 1.0,
+      "subdomain_depth": 1.0,
+      "suspicious_trigram_count": 0.0,
+      "tld_length": 2.0,
+      "trigram_suspicion_ratio": 0.0,
+      "unique_trigram_ratio": 0.0,
+      "vowel_ratio": 0.3333333333333333
+    },
+    "risk_factors": [],
+    "score": 0.1125,
+    "suspicious_keywords": []
+  },
+  "phishing_score": 0.1125,
+  "risk_factors": [
+    {
+      "detail": "Visual evidence was captured and no suspicious OCR phrases were found.",
+      "name": "Screenshot captured",
+      "score_impact": 0.0,
+      "severity": "info"
+    }
+  ],
+  "stages": [
+    {
+      "details": {
+        "allow_private": false,
+        "private_overrides": []
+      },
+      "duration_ms": 11,
+      "name": "SSRF validation",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "keywords": [],
+        "score": 0.1125
+      },
+      "duration_ms": 150,
+      "name": "Lexical analysis",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "a_records": [
+          "45.118.48.5",
+          "14.139.251.99"
+        ],
+        "domain_age_days": 5603,
+        "registrar": "ERNET India"
+      },
+      "duration_ms": 1169,
+      "name": "DNS and WHOIS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "has_tls": true,
+        "issuer": "countryName=IN, organizationalUnitName=emSign PKI, organizationName=eMudhra Technologies Limited, commonName=emSign SSL CA - G1",
+        "suspicious": false
+      },
+      "duration_ms": 384,
+      "name": "TLS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "ocr_suspicious": false,
+        "screenshot_path": "evidence\\trc-91acc2264d_dtu.ac.in\\screenshots\\homepage.png",
+        "success": true
+      },
+      "duration_ms": 8316,
+      "name": "Screenshot and OCR",
+      "status": "ok"
+    }
+  ],
+  "started_at": "2026-05-25T08:12:34+00:00",
+  "summary": {
+    "artifact_count": 3,
+    "degraded_stages": [],
+    "headline": "dtu.ac.in is Likely Clean with score 0.1125.",
+    "why_flagged": [
+      "No strong phishing indicators were observed."
+    ]
+  },
+  "tls": {
+    "days_remaining": 96,
+    "domain_in_san": true,
+    "errors": [],
+    "has_tls": true,
+    "issuer": "countryName=IN, organizationalUnitName=emSign PKI, organizationName=eMudhra Technologies Limited, commonName=emSign SSL CA - G1",
+    "not_after": "Aug 29 10:59:01 2026 GMT",
+    "not_before": "Aug  4 10:59:01 2025 GMT",
+    "san": [
+      "dtu.ac.in",
+      "*.dtu.ac.in"
+    ],
+    "subject": "commonName=*.dtu.ac.in",
+    "suspicious": false
+  },
+  "trace_id": "trc-91acc2264d",
+  "url": "https://dtu.ac.in/",
+  "verdict": "Likely Clean",
+  "visual": {
+    "ocr_findings": {
+      "is_suspicious": false,
+      "ocr_risk_score": 0,
+      "phrases_found": []
+    },
+    "ocr_text": "",
+    "report_paths": {
+      "json": "evidence\\trc-91acc2264d_dtu.ac.in\\investigation.json",
+      "markdown": "evidence\\trc-91acc2264d_dtu.ac.in\\report.md"
+    },
+    "screenshot_path": "evidence\\trc-91acc2264d_dtu.ac.in\\screenshots\\homepage.png",
+    "success": true
+  }
+}
