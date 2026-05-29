@@ -2,6 +2,26 @@ import { NextResponse } from "next/server";
 import { getCircuitBreakers, getQueueMetrics } from "@/services/mock-generator";
 
 export async function GET() {
+  if (process.env.NEXT_PUBLIC_TELEMETRY_MODE === 'REAL') {
+    try {
+      const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+      const res = await fetch(`${backendUrl}/api/ready`, { next: { revalidate: 0 } });
+      const data = await res.json();
+      return NextResponse.json({
+        ready: data.status === "ok",
+        timestamp: new Date().toISOString(),
+        details: {
+          activeWorkers: data.details?.activeWorkers || 0,
+          databaseConnections: data.database === "connected",
+          cacheConnections: data.redis === "connected",
+          workerAvailability: true
+        }
+      }, { status: data.status === "ok" ? 200 : 503 });
+    } catch (e) {
+      return NextResponse.json({ ready: false, timestamp: new Date().toISOString(), details: {} }, { status: 503 });
+    }
+  }
+
   const breakers = getCircuitBreakers().payload;
   const queues = getQueueMetrics().payload;
 

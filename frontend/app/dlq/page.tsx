@@ -28,8 +28,31 @@ export default function DLQPage() {
   const [dlqItems, setDlqItems] = useState<DLQEntry[]>([]);
 
   useEffect(() => {
-    // In a real app this would be fetched from a REST endpoint since DLQ isn't just streaming events
-    setDlqItems(generateMockDlq());
+    if (process.env.NEXT_PUBLIC_TELEMETRY_MODE === 'REAL') {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+      fetch(`${backendUrl}/api/admin/failed-jobs`)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.jobs) {
+            setDlqItems(data.jobs.map((j: any) => ({
+              jobId: j.job_id || "unknown",
+              traceId: j.trace_id || "unknown",
+              failureClass: j.last_error || "UnknownError",
+              workerType: j.source || "unknown",
+              retryAttempts: j.attempts || 0,
+              retryEligible: (j.attempts || 0) < 3,
+              timestamp: j.last_failed_at ? new Date(j.last_failed_at * 1000).toISOString() : new Date().toISOString(),
+              dependencyFailureSource: undefined
+            })));
+          }
+        })
+        .catch(err => {
+          console.error("Failed to fetch real DLQ", err);
+          setDlqItems(generateMockDlq());
+        });
+    } else {
+      setDlqItems(generateMockDlq());
+    }
   }, []);
 
   return (

@@ -7,6 +7,10 @@ import pandas as pd
 from herald.features.lexical_features import extract_url_features
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 SUSPICIOUS_KEYWORDS = [
     "login",
     "signin",
@@ -24,6 +28,12 @@ SUSPICIOUS_KEYWORDS = [
 
 
 def analyze_lexical(domain: str) -> dict[str, Any]:
+    """
+    Analyzes the lexical features of a domain using a rule-based heuristic scoring engine.
+    NOTE: This is a fallback/CLI engine and is distinct from the primary PhishingPredictorV3
+    ML model (`ensemble_v7.joblib`) used by the background workers.
+    """
+    logger.warning("Using heuristic scoring engine (scoring.py) instead of primary ML model for domain: %s", domain)
     df = pd.DataFrame([{"domain": domain}])
     features = extract_url_features(df, domain_col="domain").iloc[0].to_dict()
     found_keywords = [keyword for keyword in SUSPICIOUS_KEYWORDS if features.get(f"has_{keyword}", 0) == 1]

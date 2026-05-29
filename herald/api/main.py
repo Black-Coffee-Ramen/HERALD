@@ -298,6 +298,7 @@ def trigger_scan(request: Request, scan_req: ScanRequest, current_user: User = D
     """
     Push a domain directly into the processing queue.
     """
+    domain_queue = get_domain_queue()
     if not domain_queue:
         logger.error("redis_offline", action="trigger_scan")
         raise HTTPException(status_code=500, detail="Redis queue is offline")
@@ -326,6 +327,7 @@ def investigate_url(request: Request, inv_req: InvestigateRequest, current_user:
     """
     Push a URL into the real investigation pipeline.
     """
+    domain_queue = get_domain_queue()
     if not domain_queue:
         logger.error("redis_offline", action="investigate_url")
         raise HTTPException(status_code=500, detail="Redis queue is offline")
@@ -362,6 +364,10 @@ def investigate_url(request: Request, inv_req: InvestigateRequest, current_user:
 
 @app.get("/metrics", response_class=PlainTextResponse)
 def prometheus_metrics():
+    domain_queue = get_domain_queue()
+    visual_queue = get_visual_queue()
+    visual_circuit = get_visual_circuit()
+    
     if domain_queue:
         for state, value in domain_queue.depth().items():
             metrics.gauge("herald_queue_depth", value, queue=DOMAIN_ANALYSIS_QUEUE.ready, state=state)
@@ -420,13 +426,11 @@ def submit_feedback(request: FeedbackRequest, db: Session = Depends(get_db), cur
     if not scan:
         raise HTTPException(status_code=404, detail="Domain scan not found")
     
-    scan.analyst_verdict = request.verdict
-    db.commit()
-    logger.info("feedback_submitted", domain=request.domain, verdict=request.verdict)
-    return {"status": "ok", "message": "Feedback recorded"}
+
 
 @app.get("/api/admin/failed-jobs")
 def get_failed_jobs(current_user: User = Depends(get_current_user)):
+    redis_client = get_redis()
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis queue is offline")
     
@@ -435,6 +439,7 @@ def get_failed_jobs(current_user: User = Depends(get_current_user)):
 
 @app.post("/api/admin/failed-jobs/retry")
 def retry_failed_jobs(current_user: User = Depends(get_current_user)):
+    domain_queue = get_domain_queue()
     if not domain_queue:
         raise HTTPException(status_code=500, detail="Redis queue is offline")
         
@@ -529,6 +534,7 @@ def readiness_check(db: Session = Depends(get_db)):
         reasons.append(f"db_error: {str(e)}")
 
     # Redis
+    redis_client = get_redis()
     redis_ok = redis_client is not None
     if not redis_ok:
         status = "degraded"
@@ -553,10 +559,13 @@ def metrics_summary():
         "circuit_breakers": {}
     }
 
+    redis_client = get_redis()
     if not redis_client:
         return {"status": "error", "message": "Redis unavailable"}
 
     # Queue Metrics
+    domain_queue = get_domain_queue()
+    visual_queue = get_visual_queue()
     if domain_queue:
         summary["queues"]["lexical"] = domain_queue.depth()
     if visual_queue:
@@ -584,6 +593,7 @@ def metrics_summary():
         "timeouts_1m": int(redis_client.get("browser:timeouts_1m") or 0)
     }
 
+    visual_circuit = get_visual_circuit()
     if visual_circuit:
         summary["circuit_breakers"]["visual_analysis"] = visual_circuit.state()
 

@@ -34,8 +34,8 @@ RUN CHROMEDRIVER_URL=$(curl -s "https://googlechromelabs.github.io/chrome-for-te
 WORKDIR /app
 
 # Copy and install requirements first (layer caching — only rebuilds if requirements change)
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-runtime.txt .
+RUN pip install --no-cache-dir -r requirements-runtime.txt
 
 # Copy application code
 COPY . .

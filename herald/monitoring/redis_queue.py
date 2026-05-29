@@ -105,16 +105,18 @@ class RedisReliableQueue:
         self.client.lrem(self.names.processing, 1, leased_job_json)
 
     def retry_or_dlq(self, leased_job_json: str, job: dict[str, Any], error: Exception) -> None:
-        self.client.lrem(self.names.processing, 1, leased_job_json)
-
         attempts = int(job.get("attempts", 0)) + 1
         job["attempts"] = attempts
         job["last_error"] = str(error)
         job["last_failed_at"] = time.time()
         job.pop("lease_expires_at", None)
 
+        pipe = self.client.pipeline()
+        pipe.lrem(self.names.processing, 1, leased_job_json)
+
         if attempts >= self.max_retries:
-            self.client.rpush(self.names.dlq, json.dumps(job, sort_keys=True))
+            pipe.rpush(self.names.dlq, json.dumps(job, sort_keys=True))
+            pipe.execute()
             logger.error(
                 "queue_job_dead_lettered",
                 queue=self.names.ready,
@@ -125,7 +127,10 @@ class RedisReliableQueue:
             return
 
         delay = min(30 * (2 ** (attempts - 1)), 300)
-        self.enqueue(job, delay_seconds=delay)
+        job_json = json.dumps(job, sort_keys=True)
+        pipe.zadd(self.names.delayed, {job_json: time.time() + delay})
+        pipe.execute()
+        
         logger.info(
             "queue_job_retried",
             queue=self.names.ready,
@@ -135,11 +140,15 @@ class RedisReliableQueue:
         )
 
     def send_to_dlq(self, leased_job_json: str, job: dict[str, Any], error: Exception) -> None:
-        self.client.lrem(self.names.processing, 1, leased_job_json)
         job["last_error"] = str(error)
         job["last_failed_at"] = time.time()
         job.pop("lease_expires_at", None)
-        self.client.rpush(self.names.dlq, json.dumps(job, sort_keys=True))
+        
+        pipe = self.client.pipeline()
+        pipe.lrem(self.names.processing, 1, leased_job_json)
+        pipe.rpush(self.names.dlq, json.dumps(job, sort_keys=True))
+        pipe.execute()
+        
         logger.error(
             "queue_job_dead_lettered_immediate",
             queue=self.names.ready,
