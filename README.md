@@ -413,21 +413,9 @@ npm run dev
 
 The frontend defaults to mock/synthetic telemetry. Set `NEXT_PUBLIC_TELEMETRY_MODE=REAL` and run the API backend to connect live data.
 
-### Docker (Experimental — Fix Required)
+### Docker
 
-Before building, update `docker/Dockerfile` to reference the correct requirements file:
-
-```dockerfile
-# Replace:
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-
-# With:
-COPY requirements-runtime.txt .
-RUN pip install -r requirements-runtime.txt
-```
-
-Then build and start:
+Build and start the platform:
 
 ```bash
 docker compose up --build

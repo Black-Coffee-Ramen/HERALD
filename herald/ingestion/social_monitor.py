@@ -54,7 +54,7 @@ class SocialMonitor:
             if domain.startswith("www."):
                 domain = domain[4:]
             return domain.lower()
-        except:
+        except ValueError:
             return None
 
     def scrape_channel(self, channel):

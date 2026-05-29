@@ -24,3 +24,4 @@
 {"completed_at": "2026-05-25T08:00:46+00:00", "domain": "iiitd.ac.in", "evidence_dir": "evidence\\trc-c99dddb242_iiitd.ac.in", "phishing_score": 0.1375, "trace_id": "trc-c99dddb242", "verdict": "Likely Clean"}
 {"completed_at": "2026-05-25T08:02:47+00:00", "domain": "cybercrime.gov.in", "evidence_dir": "evidence\\trc-129fbe2d21_cybercrime.gov.in", "phishing_score": 0.35, "trace_id": "trc-129fbe2d21", "verdict": "Suspected"}
 {"completed_at": "2026-05-25T08:12:44+00:00", "domain": "dtu.ac.in", "evidence_dir": "evidence\\trc-91acc2264d_dtu.ac.in", "phishing_score": 0.1125, "trace_id": "trc-91acc2264d", "verdict": "Likely Clean"}
+{"completed_at": "2026-05-29T07:51:09+00:00", "domain": "example.com", "evidence_dir": "evidence\\trc-18c9e632ef_example.com", "phishing_score": 0.1375, "trace_id": "trc-18c9e632ef", "verdict": "Likely Clean"}

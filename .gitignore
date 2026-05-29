@@ -106,3 +106,7 @@ Desktop.ini
 config.local.*
 *.local.yaml
 *.local.yml
+
+# Text files
+*.txt
+!requirements*.txt

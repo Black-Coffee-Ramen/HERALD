@@ -15,17 +15,15 @@ def test_api_scan_enqueues_job():
     mock_queue.depth.return_value = {"ready": 0, "processing": 0, "delayed": 0, "dlq": 0}
     mock_queue.enqueue.return_value = "job-1234"
     
-    # Mock the get_domain_queue to return our mock queue
-    with patch('herald.api.main.get_domain_queue', return_value=mock_queue):
-        # We need to mock dependency get_current_user to bypass authentication
-        from herald.api.main import get_current_user
-        from herald.db.models import User
-        
-        app.dependency_overrides[get_current_user] = lambda: User(username="test_analyst")
-        
+    from herald.api.main import get_domain_queue, get_current_user
+    from herald.db.models import User
+    
+    app.dependency_overrides[get_domain_queue] = lambda: mock_queue
+    app.dependency_overrides[get_current_user] = lambda: User(username="test_analyst")
+    
+    try:
         response = client.post("/api/scan", json={"domain": "example.com"})
-        
-        # Reset override
+    finally:
         app.dependency_overrides.clear()
         
         assert response.status_code == 200

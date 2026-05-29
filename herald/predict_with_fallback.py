@@ -40,26 +40,23 @@ Benefits:
 # Suppress warnings
 warnings.filterwarnings('ignore')
 
-def _run_async_in_sync(coro):
-    """Run an async coroutine in a synchronous context safely by spawning a new thread."""
-    result = []
-    error = []
-    def target():
-        try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result.append(loop.run_until_complete(coro))
-        except Exception as e:
-            error.append(e)
-        finally:
-            loop.close()
-            
-    t = threading.Thread(target=target)
-    t.start()
-    t.join()
-    if error:
-        raise error[0]
-    return result[0]
+import multiprocessing
+
+def _run_analyzer_process(domain, result_queue):
+    """Temporary Workaround: Run visual analysis in a separate process to avoid async event loop collisions."""
+    import asyncio
+    from herald.core.playwright_analyzer import PlaywrightVisualAnalyzer
+    
+    try:
+        analyzer = PlaywrightVisualAnalyzer()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        res = loop.run_until_complete(analyzer.run_analysis(domain))
+        result_queue.put({"success": True, "result": res})
+    except Exception as e:
+        result_queue.put({"success": False, "error": e})
+    finally:
+        loop.close()
 
 class PhishingPredictorV3:
     """
@@ -130,8 +127,8 @@ class PhishingPredictorV3:
                     if na:
                         remaining = (cert_time_to_seconds(na) - time.time())
                         features['cert_days_remaining'] = int(remaining/86400)
-        except:
-            pass
+        except (socket.timeout, socket.gaierror, ssl.SSLError) as e:
+            print(f"SSL/Socket error for {domain}: {e}")
             
         try:
             resolver = dns.resolver.Resolver()
@@ -142,22 +139,25 @@ class PhishingPredictorV3:
             try:
                 mx = resolver.resolve(domain, 'MX')
                 features['has_mx'] = int(len(mx) > 0)
-            except: pass
+            except dns.exception.DNSException as e:
+                print(f"DNS MX error for {domain}: {e}")
             
             # SPF
             try:
                 txt = resolver.resolve(domain, 'TXT')
                 features['has_spf'] = int(any('spf' in str(r).lower() for r in txt))
-            except: pass
+            except dns.exception.DNSException as e:
+                print(f"DNS TXT (SPF) error for {domain}: {e}")
             
             # A
             try:
                 a = resolver.resolve(domain, 'A')
                 features['a_record_count'] = len(a)
                 features['ttl_value'] = a.rrset.ttl
-            except: pass
-        except:
-            pass
+            except dns.exception.DNSException as e:
+                print(f"DNS A error for {domain}: {e}")
+        except dns.exception.DNSException as e:
+            print(f"DNS resolution error for {domain}: {e}")
             
         return features
 
@@ -173,8 +173,8 @@ class PhishingPredictorV3:
             if creation_date:
                 age = (datetime.now() - creation_date).days
                 return age
-        except:
-            pass
+        except whois.parser.PywhoisError as e:
+            print(f"WHOIS error for {domain}: {e}")
         return -1
 
     def _extract_brand(self, domain):
@@ -291,7 +291,27 @@ class PhishingPredictorV3:
     def analyze_visual_fallback(self, domain, cse_name, initial_confidence):
         """Run the slow browser/OCR fallback outside the fast queue worker."""
         try:
-            res = _run_async_in_sync(self.ocr_analyzer.run_analysis(domain))
+            # Temporary Workaround: Use multiprocessing instead of threading to properly isolate the event loop.
+            ctx = multiprocessing.get_context('spawn')
+            result_queue = ctx.Queue()
+            
+            p = ctx.Process(target=_run_analyzer_process, args=(domain, result_queue))
+            p.start()
+            p.join(timeout=30)
+            
+            if p.is_alive():
+                p.terminate()
+                p.join()
+                raise TimeoutError("Visual analyzer process timed out")
+                
+            if result_queue.empty():
+                raise Exception("Visual analyzer process exited without returning a result")
+                
+            payload = result_queue.get()
+            if not payload.get("success"):
+                raise payload.get("error", Exception("Unknown visual fallback error"))
+                
+            res = payload["result"]
             is_susp = res.get("ocr_findings", {}).get("is_suspicious", False)
             return {
                 "cv_ocr_confirmed": is_susp,

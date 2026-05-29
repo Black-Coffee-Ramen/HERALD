@@ -48,7 +48,7 @@ def collect_dns_intelligence(domain: str) -> dict[str, Any]:
         if isinstance(nameservers, str):
             nameservers = [nameservers]
         result["nameservers"] = sorted({str(ns).rstrip(".").lower() for ns in nameservers if ns})
-    except Exception as exc:
+    except whois.parser.PywhoisError as exc:
         result["errors"].append(f"whois: {_short_error(exc)}")
 
     resolver = dns.resolver.Resolver()
@@ -59,7 +59,7 @@ def collect_dns_intelligence(domain: str) -> dict[str, Any]:
         try:
             answers = resolver.resolve(domain, record_type)
             result[key] = [str(answer).strip('"') for answer in answers]
-        except Exception as exc:
+        except dns.exception.DNSException as exc:
             result["errors"].append(f"{record_type}: {_short_error(exc)}")
 
     try:
@@ -67,7 +67,7 @@ def collect_dns_intelligence(domain: str) -> dict[str, Any]:
             ip = sockaddr[0]
             if not any(item["ip"] == ip for item in result["ip_metadata"]):
                 result["ip_metadata"].append({"ip": ip, "family": "IPv6" if family == socket.AF_INET6 else "IPv4"})
-    except Exception as exc:
+    except socket.gaierror as exc:
         result["errors"].append(f"ip: {_short_error(exc)}")
 
     return result
@@ -92,7 +92,7 @@ def collect_tls_intelligence(domain: str) -> dict[str, Any]:
         with socket.create_connection((domain, 443), timeout=5) as sock:
             with context.wrap_socket(sock, server_hostname=domain) as tls_sock:
                 cert = tls_sock.getpeercert()
-    except Exception as exc:
+    except (socket.timeout, socket.gaierror, ssl.SSLError, ConnectionError) as exc:
         result["errors"].append(_short_error(exc))
         return result
 
@@ -111,7 +111,7 @@ def collect_tls_intelligence(domain: str) -> dict[str, Any]:
     try:
         expires = datetime.fromtimestamp(ssl.cert_time_to_seconds(cert["notAfter"]), tz=timezone.utc)
         result["days_remaining"] = (expires - datetime.now(timezone.utc)).days
-    except Exception:
+    except ValueError:
         pass
 
     issuer = (result["issuer"] or "").lower()

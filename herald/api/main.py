@@ -43,6 +43,24 @@ async def startup_event():
     logger.info("database_connected", database="sqlite")
     inspector = inspect(engine)
     
+    REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+    try:
+        import redis
+        from herald.monitoring.redis_queue import DOMAIN_ANALYSIS_QUEUE, VISUAL_ANALYSIS_QUEUE, RedisReliableQueue
+        from herald.monitoring.resilience import CircuitBreakerConfig, RedisCircuitBreaker
+        redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
+        redis_client.ping()
+        app.state.redis_client = redis_client
+        app.state.domain_queue = RedisReliableQueue(redis_client, DOMAIN_ANALYSIS_QUEUE)
+        app.state.visual_queue = RedisReliableQueue(redis_client, VISUAL_ANALYSIS_QUEUE)
+        app.state.visual_circuit = RedisCircuitBreaker(redis_client, CircuitBreakerConfig(name="visual_analysis"))
+    except Exception as e:
+        logger.warning(f"Could not connect to Redis from API layer. {e}")
+        app.state.redis_client = None
+        app.state.domain_queue = None
+        app.state.visual_queue = None
+        app.state.visual_circuit = None
+    
     if not inspector.has_table("domain_scans"):
         logger.warning("database_initialized")
         return
@@ -71,60 +89,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Redis configuration
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+def get_redis_client(request: Request):
+    return getattr(request.app.state, "redis_client", None)
 
-_redis_client = None
-_domain_queue = None
-_visual_queue = None
-_visual_circuit = None
+def get_domain_queue(request: Request):
+    return getattr(request.app.state, "domain_queue", None)
 
-def get_redis():
-    global _redis_client
-    if _redis_client is None:
-        try:
-            _redis_client = redis.Redis(host=REDIS_HOST, port=6379, db=0, decode_responses=True)
-            _redis_client.ping()
-        except redis.ConnectionError:
-            logging.warning("Could not connect to Redis from API layer.")
-            _redis_client = None
-    return _redis_client
+def get_visual_queue(request: Request):
+    return getattr(request.app.state, "visual_queue", None)
 
-def get_domain_queue():
-    global _domain_queue
-    if _domain_queue is None:
-        client = get_redis()
-        _domain_queue = RedisReliableQueue(client, DOMAIN_ANALYSIS_QUEUE) if client else None
-    return _domain_queue
-
-def get_visual_queue():
-    global _visual_queue
-    if _visual_queue is None:
-        client = get_redis()
-        _visual_queue = RedisReliableQueue(client, VISUAL_ANALYSIS_QUEUE) if client else None
-    return _visual_queue
-
-def get_visual_circuit():
-    global _visual_circuit
-    if _visual_circuit is None:
-        client = get_redis()
-        _visual_circuit = (
-            RedisCircuitBreaker(client, CircuitBreakerConfig(name="visual_analysis"))
-            if client
-            else None
-        )
-    return _visual_circuit
-
-def __getattr__(name):
-    if name == 'redis_client':
-        return get_redis()
-    elif name == 'domain_queue':
-        return get_domain_queue()
-    elif name == 'visual_queue':
-        return get_visual_queue()
-    elif name == 'visual_circuit':
-        return get_visual_circuit()
-    raise AttributeError(f"module {__name__} has no attribute {name}")
+def get_visual_circuit(request: Request):
+    return getattr(request.app.state, "visual_circuit", None)
 
 DOMAIN_QUEUE_MAX_READY = int(os.getenv("DOMAIN_QUEUE_MAX_READY", "5000"))
 
@@ -264,6 +239,8 @@ class UserResponse(BaseModel):
 
 @app.post("/api/auth/register", response_model=UserResponse)
 def register_user(user_in: UserCreate, db: Session = Depends(get_db)):
+    if os.getenv("ALLOW_REGISTRATION", "false").lower() != "true":
+        raise HTTPException(status_code=403, detail="Registration is disabled")
     # Simple registration for P0/MVP. In production, this should be admin-only or restricted.
     existing_user = db.query(User).filter(User.username == user_in.username).first()
     if existing_user:
@@ -294,11 +271,10 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 
 @app.post("/api/scan")
 @limiter.limit("60/minute")
-def trigger_scan(request: Request, scan_req: ScanRequest, current_user: User = Depends(get_current_user)):
+def trigger_scan(request: Request, scan_req: ScanRequest, current_user: User = Depends(get_current_user), domain_queue = Depends(get_domain_queue)):
     """
     Push a domain directly into the processing queue.
     """
-    domain_queue = get_domain_queue()
     if not domain_queue:
         logger.error("redis_offline", action="trigger_scan")
         raise HTTPException(status_code=500, detail="Redis queue is offline")
@@ -323,11 +299,10 @@ def trigger_scan(request: Request, scan_req: ScanRequest, current_user: User = D
 
 @app.post("/api/investigate")
 @limiter.limit("60/minute")
-def investigate_url(request: Request, inv_req: InvestigateRequest, current_user: User = Depends(get_current_user)):
+def investigate_url(request: Request, inv_req: InvestigateRequest, current_user: User = Depends(get_current_user), domain_queue = Depends(get_domain_queue)):
     """
     Push a URL into the real investigation pipeline.
     """
-    domain_queue = get_domain_queue()
     if not domain_queue:
         logger.error("redis_offline", action="investigate_url")
         raise HTTPException(status_code=500, detail="Redis queue is offline")
@@ -363,10 +338,7 @@ def investigate_url(request: Request, inv_req: InvestigateRequest, current_user:
 
 
 @app.get("/metrics", response_class=PlainTextResponse)
-def prometheus_metrics():
-    domain_queue = get_domain_queue()
-    visual_queue = get_visual_queue()
-    visual_circuit = get_visual_circuit()
+def prometheus_metrics(domain_queue = Depends(get_domain_queue), visual_queue = Depends(get_visual_queue), visual_circuit = Depends(get_visual_circuit)):
     
     if domain_queue:
         for state, value in domain_queue.depth().items():
@@ -429,8 +401,7 @@ def submit_feedback(request: FeedbackRequest, db: Session = Depends(get_db), cur
 
 
 @app.get("/api/admin/failed-jobs")
-def get_failed_jobs(current_user: User = Depends(get_current_user)):
-    redis_client = get_redis()
+def get_failed_jobs(current_user: User = Depends(get_current_user), redis_client = Depends(get_redis_client)):
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis queue is offline")
     
@@ -438,8 +409,7 @@ def get_failed_jobs(current_user: User = Depends(get_current_user)):
     return {"count": len(failed_jobs), "jobs": [json.loads(job) for job in failed_jobs]}
 
 @app.post("/api/admin/failed-jobs/retry")
-def retry_failed_jobs(current_user: User = Depends(get_current_user)):
-    domain_queue = get_domain_queue()
+def retry_failed_jobs(current_user: User = Depends(get_current_user), domain_queue = Depends(get_domain_queue)):
     if not domain_queue:
         raise HTTPException(status_code=500, detail="Redis queue is offline")
         
@@ -519,7 +489,7 @@ def health_check():
     return {"status": "ok"}
 
 @app.get("/api/ready")
-def readiness_check(db: Session = Depends(get_db)):
+def readiness_check(db: Session = Depends(get_db), redis_client = Depends(get_redis_client)):
     """Readiness check: Redis, DB, telemetry, queues, websockets."""
     status = "ok"
     reasons = []
@@ -534,7 +504,6 @@ def readiness_check(db: Session = Depends(get_db)):
         reasons.append(f"db_error: {str(e)}")
 
     # Redis
-    redis_client = get_redis()
     redis_ok = redis_client is not None
     if not redis_ok:
         status = "degraded"
@@ -550,7 +519,7 @@ def readiness_check(db: Session = Depends(get_db)):
     }
 
 @app.get("/api/metrics-summary")
-def metrics_summary():
+def metrics_summary(redis_client = Depends(get_redis_client), domain_queue = Depends(get_domain_queue), visual_queue = Depends(get_visual_queue), visual_circuit = Depends(get_visual_circuit)):
     """Operational metrics summaries for dashboard consumption."""
     summary = {
         "queues": {},
@@ -559,13 +528,10 @@ def metrics_summary():
         "circuit_breakers": {}
     }
 
-    redis_client = get_redis()
     if not redis_client:
         return {"status": "error", "message": "Redis unavailable"}
 
     # Queue Metrics
-    domain_queue = get_domain_queue()
-    visual_queue = get_visual_queue()
     if domain_queue:
         summary["queues"]["lexical"] = domain_queue.depth()
     if visual_queue:
@@ -579,7 +545,8 @@ def metrics_summary():
         if not ts_str: return False
         try:
             return (datetime.utcnow() - datetime.fromisoformat(ts_str)).total_seconds() < 120
-        except: return False
+        except ValueError:
+            return False
 
     summary["workers"]["lexical_active"] = 1 if is_active(domain_last_seen) else 0
     summary["workers"]["visual_active"] = 1 if is_active(visual_last_seen) else 0
@@ -593,7 +560,6 @@ def metrics_summary():
         "timeouts_1m": int(redis_client.get("browser:timeouts_1m") or 0)
     }
 
-    visual_circuit = get_visual_circuit()
     if visual_circuit:
         summary["circuit_breakers"]["visual_analysis"] = visual_circuit.state()
 
