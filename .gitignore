@@ -6,6 +6,8 @@ outputs/
 *.md
 !README.md
 !doc.md
+!CONTRIBUTING.md
+!LICENSE.md
 
 # PDFs and Reports (never commit)
 *.pdf
