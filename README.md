@@ -334,7 +334,7 @@ For direct CLI use, `InvestigationPipeline` runs the same logic synchronously wi
 
 ## Quick Start
 
-The fastest path to a working investigation — no server or database required:
+The fastest path to a working investigation and no server or database required:
 
 ```bash
 git clone https://github.com/Black-Coffee-Ramen/HERALD
@@ -697,9 +697,9 @@ For large-scale monitoring of 50+ CSEs with real-time CT log processing, 48+ cor
 
 HERALD has two independent detection paths:
 
-**CLI path** (`herald/investigation/scoring.py`): Rule-based heuristic scoring — fast, fully explainable, no model file required.
+**CLI path** (`herald/investigation/scoring.py`): Rule-based heuristic scoring fast, fully explainable, no model file required.
 
-**Worker path** (`herald/predict_with_fallback.py`): `PhishingPredictorV3` loads `models/ensemble_v7.joblib` — a Random Forest (40%) + XGBoost (60%) ensemble with content-feature adjustment for borderline scores.
+**Worker path** (`herald/predict_with_fallback.py`): `PhishingPredictorV3` loads `models/ensemble_v7.joblib` a Random Forest (40%) + XGBoost (60%) ensemble with content-feature adjustment for borderline scores.
 
 ### Version History
 
@@ -894,7 +894,7 @@ The platform pipeline: CT logs, NRD feeds, and social monitors feed into a Redis
 
 ![ML Decision Flowchart](public/Figure-2.png)
 
-The inference decision tree. Scores above 0.65 exit early as **Phishing**. Scores below 0.30 exit early as **Clean**. Borderline cases enter Stage 2 fallback analysis — DNS, WHOIS, SSL, content features, and visual OCR — producing an adjusted score `S'` and a final three-way verdict.
+The inference decision tree. Scores above 0.65 exit early as **Phishing**. Scores below 0.30 exit early as **Clean**. Borderline cases enter Stage 2 fallback analysis, DNS, WHOIS, SSL, content features, and visual OCR producing an adjusted score `S'` and a final three-way verdict.
 
 ---
 
