@@ -24,7 +24,7 @@
 
 ---
 
-HERALD is an open-source phishing investigation platform that monitors the internet for lookalike domains targeting banks, government portals, and financial institutions. It catches threats within minutes of domain registration by combining Certificate Transparency log monitoring, multi-stage ML detection, live network enrichment, and Playwright-powered visual analysis — all without relying on VirusTotal, Shodan, or any paid threat intelligence feed.
+HERALD is an open-source phishing investigation platform that monitors the internet for lookalike domains targeting banks, government portals, and financial institutions. It catches threats within minutes of domain registration by combining Certificate Transparency log monitoring, multi-stage ML detection, live network enrichment, and Playwright-powered visual analysis, all without relying on VirusTotal, Shodan, or any paid threat intelligence feed.
 
 Unlike classifiers that output only a binary label, HERALD produces **investigation artifacts**: structured JSON, Markdown reports, full-page screenshots, and explainable risk factor breakdowns.
 
@@ -60,7 +60,7 @@ Unlike classifiers that output only a binary label, HERALD produces **investigat
 
 ## Overview
 
-HERALD addresses a specific operational gap: organizations that cannot rely on commercial threat-intelligence APIs need a local, self-hosted path to discover and investigate suspicious domains — particularly domains impersonating Indian banking, government, telecom, and public-service brands (SBI, HDFC, ICICI, IRCTC, UIDAI, NIC, Airtel, IOCL, and others).
+HERALD addresses a specific operational gap: organizations that cannot rely on commercial threat-intelligence APIs need a local, self-hosted path to discover and investigate suspicious domains, particularly domains impersonating Indian banking, government, telecom, and public-service brands (SBI, HDFC, ICICI, IRCTC, UIDAI, NIC, Airtel, IOCL, and others).
 
 Commercial platforms cost tens of thousands of dollars annually and create data sovereignty concerns. Small banks, fintech companies, and government agencies in developing markets need the same level of protection.
 
@@ -72,7 +72,7 @@ HERALD is:
 - **Explainable** — every verdict comes with a human-readable risk factor breakdown
 - **Resilient** — individual stage failures (DNS, TLS, OCR) degrade gracefully without aborting an investigation
 
-The system solves two distinct sub-problems. **High-volume early discovery** — new certificate-transparency events and NRD feeds arrive continuously; most domains are benign. A fast ML-first triage pass handles this cheaply. **High-confidence investigation** — shortlisted suspicious domains need explainable evidence: lexical risk, DNS/WHOIS/TLS metadata, screenshots, OCR-detected credential prompts, and analyst-reviewable reports. HERALD handles this through a dedicated investigation pipeline.
+The system solves two distinct sub-problems. **High-volume early discovery**: new certificate-transparency events and NRD feeds arrive continuously; most domains are benign. A fast ML-first triage pass handles this cheaply. **High-confidence investigation**: shortlisted suspicious domains need explainable evidence: lexical risk, DNS/WHOIS/TLS metadata, screenshots, OCR-detected credential prompts, and analyst-reviewable reports. HERALD handles this through a dedicated investigation pipeline.
 
 The current codebase has three active product surfaces:
 
@@ -376,7 +376,7 @@ Evidence written to: evidence/trc-8837ebe50d_paypal-login-alert.com/
 
 - Python 3.12+
 - Node.js 18+ (frontend only)
-- Tesseract OCR (optional — enables OCR text extraction)
+- Tesseract OCR (optional, enables OCR text extraction)
 
 ### Python Environment
 
@@ -543,7 +543,7 @@ Services started by `docker-compose.yml`:
 
 The FastAPI application runs at `http://localhost:8000`. Interactive Swagger docs are available at `/docs`.
 
-> **Note:** The API is functional but less battle-tested than the CLI. Queue submission endpoints have a known globals issue — see [Known Limitations](#known-limitations).
+> **Note:** The API is functional but less battle-tested than the CLI. Queue submission endpoints have a known globals issue, see [Known Limitations](#known-limitations).
 
 ### Authentication
 
@@ -741,7 +741,7 @@ The `models/` directory contains artifacts from v2 through v9. The production wo
 
 ### Research Finding
 
-> Through extensive experimentation across multiple model generations, HERALD demonstrates that **pure lexical phishing detection reaches a practical performance ceiling around F1 ≈ 0.91**. Beyond this threshold, live content inspection and visual intelligence become necessary — not optional. This is the core architectural motivation for v7's two-stage inference design.
+> Through extensive experimentation across multiple model generations, HERALD demonstrates that **pure lexical phishing detection reaches a practical performance ceiling around F1 ≈ 0.91**. Beyond this threshold, live content inspection and visual intelligence become necessary not optional. This is the core architectural motivation for v7's two-stage inference design.
 
 ---
 
@@ -916,7 +916,7 @@ Infrastructure observability view: API latency, worker throughput, DLQ pressure,
 
 ![DLQ](public/herald_dashboard_3.png)
 
-The Dead Letter Queue view listing failed jobs requiring manual intervention — job IDs, worker assignment, failure class (ParseError / TimeoutError), browser timeout tags, and retry counts against limits.
+The Dead Letter Queue view listing failed jobs requiring manual intervention, job IDs, worker assignment, failure class (ParseError / TimeoutError), browser timeout tags, and retry counts against limits.
 
 ---
 
@@ -932,7 +932,7 @@ Platform domain detail for a confirmed phishing domain. OCR extracted three high
 
 ![Dropbox File Access](public/dropbox-file-access.net.png)
 
-Platform domain detail for a domain that scored clean. No OCR findings; processing timeline shows all stages completed (domain observed → lexical analysis → DNS enrichment → visual analysis → OCR → verdict persisted). DNS resolves to two A records and an MX pointing to the same domain. DigiCert TLS issuer, MarkMonitor registrar, creation date 1999 — signals a legitimate or parked domain.
+Platform domain detail for a domain that scored clean. No OCR findings; processing timeline shows all stages completed (domain observed → lexical analysis → DNS enrichment → visual analysis → OCR → verdict persisted). DNS resolves to two A records and an MX pointing to the same domain. DigiCert TLS issuer, MarkMonitor registrar, creation date 1999, signals a legitimate or parked domain.
 
 ---
 
