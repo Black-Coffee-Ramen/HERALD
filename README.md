@@ -2,7 +2,7 @@
 
 <img src="public/logo-positive.png" width="220" alt="HERALD Logo">
 
-# HERALD
+# HERALD (Heuristic & Ensemble Risk Assessment for Lookalike Domains)
 
 ### Phishing Domain Intelligence Platform
 

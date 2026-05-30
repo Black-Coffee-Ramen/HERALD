@@ -47,7 +47,7 @@ To get a local development environment running, follow these steps:
    pytest tests/
    ```
 
-## 🛠️ Where You Can Contribute
+## Where You Can Contribute
 
 HERALD is actively evolving, and there are many areas where you can help. Below are some excellent starting points:
 
@@ -61,7 +61,7 @@ HERALD is actively evolving, and there are many areas where you can help. Below 
 - **Advanced Threat Feeds:** Integrating external threat intelligence feeds (e.g., VirusTotal, URLhaus) into the investigation pipeline.
 - **Reporting & Exporting:** Expanding the PDF and JSON export functionalities to include more comprehensive evidence graphs.
 
-## 📝 Contribution Guidelines
+## Contribution Guidelines
 
 1. **Diagnose Before Patching:** If you are fixing a bug, please ensure you have isolated the root cause (and ideally written a failing test case) before applying the fix.
 2. **Commit Messages:** Keep commit messages concise and descriptive. Use prefixes like `fix:`, `feat:`, `docs:`, or `test:` to clarify the purpose.
