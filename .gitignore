@@ -29,10 +29,10 @@ outputs/
 # *.pt
 # *.pth
 
-# # Evidence directories
-# evidences_temp/
-# final_evidence/
-# evidence/
+# Evidence directories
+evidences_temp/
+final_evidence/
+evidence/
 
 # Secrets
 .env
