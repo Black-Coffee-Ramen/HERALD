@@ -58,7 +58,7 @@ def extract_url_features(df, domain_col='domain'):
     def analyze_domain_parts(domain):
         parts = domain.split('.')
         if len(parts) < 2:
-            return 0, 0, len(domain), 0, "" # Subdomains, BrandPos, RegLen, InSub, TLD
+            return 0, 0, len(domain), 0, "", "" # Subdomains, BrandPos, RegLen, InSub, TLD, MatchedKw
         
         # registered domain logic: simplified
         tld = parts[-1]

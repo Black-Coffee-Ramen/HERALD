@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from herald.core.security import SSRFProtectionError, validate_url_safe
+from herald.core.playwright_analyzer import PlaywrightVisualAnalyzer
 from herald.investigation.persistence import render_markdown
 from herald.investigation.scoring import analyze_lexical, combine_scores
 from herald.investigation.targets import normalize_target
@@ -84,6 +85,29 @@ class InvestigationCliTests(unittest.TestCase):
             validate_url_safe("http://169.254.169.254", allow_private=True)
 
         self.assertIn("metadata", raised.exception.reason.lower())
+
+    def test_ocr_phrase_detection_handles_common_phishing_variants(self):
+        analyzer = PlaywrightVisualAnalyzer()
+
+        findings = analyzer.check_suspicious_phrases(
+            "Security alert: sign in to your account and enter your OTP to verify identity."
+        )
+
+        self.assertTrue(findings["is_suspicious"])
+        self.assertIn("sign in to your account", findings["phrases_found"])
+        self.assertIn("one time password", findings["phrases_found"])
+        self.assertIn("verify your identity", findings["phrases_found"])
+        self.assertGreaterEqual(findings["ocr_risk_score"], 20)
+
+    def test_ocr_phrase_detection_ignores_benign_payment_copy(self):
+        analyzer = PlaywrightVisualAnalyzer()
+
+        findings = analyzer.check_suspicious_phrases(
+            "Pay anyone directly from your bank account. Recharge bills and book travel."
+        )
+
+        self.assertFalse(findings["is_suspicious"])
+        self.assertEqual(findings["phrases_found"], [])
 
 
 if __name__ == "__main__":

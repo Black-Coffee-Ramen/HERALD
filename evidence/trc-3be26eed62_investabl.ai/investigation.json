@@ -1,0 +1,204 @@
+{
+  "completed_at": "2026-06-01T02:06:46+00:00",
+  "dns": {
+    "a_records": [
+      "104.21.45.233",
+      "172.67.220.16"
+    ],
+    "asn": null,
+    "creation_date": "2026-03-18T09:57:21+00:00",
+    "domain_age_days": 74,
+    "errors": [],
+    "ip_metadata": [
+      {
+        "family": "IPv4",
+        "ip": "172.67.220.16"
+      },
+      {
+        "family": "IPv4",
+        "ip": "104.21.45.233"
+      }
+    ],
+    "mx_records": [
+      "10 alt3.aspmx.l.google.com.",
+      "10 alt4.aspmx.l.google.com.",
+      "5 alt2.aspmx.l.google.com.",
+      "5 alt1.aspmx.l.google.com.",
+      "1 aspmx.l.google.com."
+    ],
+    "nameservers": [
+      "armando.ns.cloudflare.com",
+      "rosalyn.ns.cloudflare.com"
+    ],
+    "registrar": "NAMECHEAP INC",
+    "txt_records": [
+      "google-site-verification=ovCfz7FfRiJW9MGcm512tYWXjPHRX9G8uRe_Px04UMs",
+      "google-site-verification=Gmgx_SpQZGvCwIJIA-xPFrXWfueWV95IPkAdW6o3xO4",
+      "v=spf1 include:spf.efwd.registrar-servers.com include:_spf.google.com ~all",
+      "google-site-verification=BkXbPmT_ZkqmlZ9q25qQeSXvrvSRX15_2AwaKTWhuGo"
+    ]
+  },
+  "domain": "investabl.ai",
+  "elapsed_ms": 9815,
+  "errors": [],
+  "evidence_dir": "evidence\\trc-3be26eed62_investabl.ai",
+  "input": "https://investabl.ai/",
+  "lexical": {
+    "features": {
+      "brand_keyword_position": 0.0,
+      "brand_to_reg_length_ratio": 0.0,
+      "consonant_ratio": 0.5,
+      "digit_ratio": 0.0,
+      "domain_length": 12.0,
+      "dot_ratio": 0.08333333333333333,
+      "entropy": 3.2516291673878226,
+      "has_account": 0.0,
+      "has_auth": 0.0,
+      "has_banking": 0.0,
+      "has_brand_in_path": 0.0,
+      "has_confirm": 0.0,
+      "has_cse_keyword_in_subdomain": 0.0,
+      "has_https": 0.0,
+      "has_ip": 0.0,
+      "has_login": 0.0,
+      "has_paypal": 0.0,
+      "has_repeated_digits": 0.0,
+      "has_secure": 0.0,
+      "has_security": 0.0,
+      "has_signin": 0.0,
+      "has_support": 0.0,
+      "has_update": 0.0,
+      "has_verify": 0.0,
+      "hyphen_ratio": 0.0,
+      "is_common_tld": 0.0,
+      "is_malicious_gtld": 0.0,
+      "is_punycode": 0.0,
+      "legitimate_trigram_count": 0.0,
+      "longest_consonant_run": 2.0,
+      "max_repeated_trigram": 1.0,
+      "min_brand_levenshtein": 99.0,
+      "num_hyphens": 0.0,
+      "num_special_chars": 0.0,
+      "registered_domain_length": 12.0,
+      "special_char_ratio": 0.0,
+      "subdomain_count": 0.0,
+      "subdomain_depth": 0.0,
+      "suspicious_trigram_count": 0.0,
+      "tld_length": 2.0,
+      "trigram_suspicion_ratio": 0.0,
+      "unique_trigram_ratio": 1.0,
+      "vowel_ratio": 0.4166666666666667
+    },
+    "risk_factors": [],
+    "score": 0.15,
+    "suspicious_keywords": []
+  },
+  "phishing_score": 0.23,
+  "risk_factors": [
+    {
+      "detail": "WHOIS creation age is 74 days.",
+      "name": "Young domain",
+      "score_impact": 0.08,
+      "severity": "medium"
+    },
+    {
+      "detail": "Visual evidence was captured and no suspicious OCR phrases were found.",
+      "name": "Screenshot captured",
+      "score_impact": 0.0,
+      "severity": "info"
+    }
+  ],
+  "stages": [
+    {
+      "details": {
+        "allow_private": false,
+        "private_overrides": []
+      },
+      "duration_ms": 9,
+      "name": "SSRF validation",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "keywords": [],
+        "score": 0.15
+      },
+      "duration_ms": 102,
+      "name": "Lexical analysis",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "a_records": [
+          "104.21.45.233",
+          "172.67.220.16"
+        ],
+        "domain_age_days": 74,
+        "registrar": "NAMECHEAP INC"
+      },
+      "duration_ms": 3028,
+      "name": "DNS and WHOIS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "has_tls": true,
+        "issuer": "countryName=US, organizationName=Google Trust Services, commonName=WE1",
+        "suspicious": false
+      },
+      "duration_ms": 233,
+      "name": "TLS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "ocr_suspicious": false,
+        "screenshot_path": "evidence\\trc-3be26eed62_investabl.ai\\screenshots\\homepage.png",
+        "success": true
+      },
+      "duration_ms": 6440,
+      "name": "Screenshot and OCR",
+      "status": "ok"
+    }
+  ],
+  "started_at": "2026-06-01T02:06:36+00:00",
+  "summary": {
+    "artifact_count": 3,
+    "degraded_stages": [],
+    "headline": "investabl.ai is Likely Clean with score 0.23.",
+    "why_flagged": [
+      "WHOIS creation age is 74 days."
+    ]
+  },
+  "tls": {
+    "days_remaining": 50,
+    "domain_in_san": true,
+    "errors": [],
+    "has_tls": true,
+    "issuer": "countryName=US, organizationName=Google Trust Services, commonName=WE1",
+    "not_after": "Jul 21 10:17:54 2026 GMT",
+    "not_before": "Apr 22 09:17:56 2026 GMT",
+    "san": [
+      "investabl.ai"
+    ],
+    "subject": "commonName=investabl.ai",
+    "suspicious": false
+  },
+  "trace_id": "trc-3be26eed62",
+  "url": "https://investabl.ai/",
+  "verdict": "Likely Clean",
+  "visual": {
+    "ocr_findings": {
+      "is_suspicious": false,
+      "ocr_risk_score": 0,
+      "phrases_found": []
+    },
+    "ocr_text": "Why How itworks Team Partners. Brokers Prop Firms Join the community\n\n\u00a9 FX + GOLD - COMMODITIES - 24/7\n\nThe CFD broker\nwithout a dealing desk.\n\nYour funds stay in your account. Spreads you can audit yourself, any\ntime.\n\nOpen the app ~ Join the community\n\n24H TRADING VOLUME AVG EXECUTION UPTIME WITHDRAWALS\n\n$7.5; <40... 24/7 2 Always....\n\nJOIN THE COMMUNITY\n\nEarly access to premium features. Trader alpha. Fee discounts.\n\nyou@email.com\n\nor @telegram Country (optional) v\n\nemail or\n\negram required. Country helps us prioritize regional\nrotlout. We never share your data.\n\n@ investabl. PRODUCT CONTACT\n\u00bb Powered by Hyperliquid 7 Open the app apurv@investabl.ai\nWhy investabl Telegram - @apurvkaushal\nWe collect email, Telegram, and optional country to invite you to the platform.\nWe never share your data with third parties. How it works\nTeam\nPartners\nBrokers\nProp Firms\n\nperformance of any str\n\n9 for\n\nstruments carries substantial risk o\n\njict future results. You are responsible for underst\n\ncan affor investment adh\n\nty, and supported instruments may",
+    "report_paths": {
+      "json": "evidence\\trc-3be26eed62_investabl.ai\\investigation.json",
+      "markdown": "evidence\\trc-3be26eed62_investabl.ai\\report.md"
+    },
+    "screenshot_path": "evidence\\trc-3be26eed62_investabl.ai\\screenshots\\homepage.png",
+    "success": true
+  }
+}

@@ -1,0 +1,234 @@
+{
+  "completed_at": "2026-06-01T02:03:11+00:00",
+  "dns": {
+    "a_records": [
+      "172.65.64.51",
+      "172.65.64.50"
+    ],
+    "asn": null,
+    "creation_date": "2003-06-23T16:29:01+00:00",
+    "domain_age_days": 8378,
+    "errors": [],
+    "ip_metadata": [
+      {
+        "family": "IPv4",
+        "ip": "172.65.64.50"
+      },
+      {
+        "family": "IPv4",
+        "ip": "172.65.64.51"
+      }
+    ],
+    "mx_records": [
+      "30 aspmx2.googlemail.com.",
+      "30 aspmx5.googlemail.com.",
+      "10 aspmx.l.google.com.",
+      "20 alt1.aspmx.l.google.com.",
+      "20 alt2.aspmx.l.google.com.",
+      "30 aspmx3.googlemail.com.",
+      "30 aspmx4.googlemail.com."
+    ],
+    "nameservers": [
+      "ns-1112.awsdns-11.org",
+      "ns-1858.awsdns-40.co.uk",
+      "ns-249.awsdns-31.com",
+      "ns-998.awsdns-60.net"
+    ],
+    "registrar": "GoDaddy.com, LLC",
+    "txt_records": [
+      "amazonses:htyWxncjzmnINnrUYG1SIhJOjIDg3XQehwCvBqav3Uo=",
+      "amazonses:7XabL68hzjmAMz9xh+xv5zq9p67Z/tGQQl8M4KYcHiM=",
+      "k8992rr9s318454k3kklt800h3jffckm",
+      "_dqmagybzw0vm244qbvvyw2m5giv60il",
+      "tfxc9ygpq5k65807s5bj9lrm5zkjx99p",
+      "d90rdsg118rspmlddjwmhq1xkh2jkw1f",
+      "apple-domain-verification=Lb2QXBpJpDMp72II",
+      "OSSRH-82568",
+      "atlassian-domain-verification=wBkA9l9cAkKCRbEDd1t/AxmSMo5u/44IWT9DxtWScBjBKC8twpo/I2yhGoLZ/qTo",
+      "anthropic-domain-verification-7vzn6p=mBNFigbhUho0ofEdrAwlzBl4G",
+      "v=spf1 ip4:13.127.134.11 ip4:54.240.85.29 ip4:54.240.85.30 include:amazonses.com include:_include1.paytm.com include:_include2.paytm.com include:_spf.salesforce.com include:_spf.google.com include:servers.mcsv.net include:email.onedirect.in \" \"include:email-messaging.com -all",
+      "vAjntCVONTm6xd6/Zjdla9f2PZXIhdob1LuOKms4rbQ=",
+      "MS=6341152B9423543860BFE82B9CBE44FB96BDFB19",
+      "_jy0clu426k0zab2i8hh13xe2jdgvkso",
+      "amazonses:LWXYzNDz97HfT2/QevyERAj570gnCy9h5ba1SIdHdfA=",
+      "atlassian-sending-domain-verification=f1166fae-8a67-465f-97e4-af7be4985639",
+      "amazonses:f2cgo/64/ZR3Wc3M9u8yW+JqF/C6AamF3tP6gjqSzWw=",
+      "amazonses:UBMnTGuTG1ddAGNSF+//kk0Ay+bG78S+2sVSolFSOlg=",
+      "xd5bmqslydc2qghxq87f5jkc4dvlqs74",
+      "google-site-verification=y_IZiW0IuexfXK1qw51Gfoqrn0cZOv9glKe8TGhoDqY",
+      "hpe-greenlake-domain-verification=736d446d4c744e2d74746c48564f4b53544a48473876314a52487634376a4959",
+      "amazonses:nEOm4A5cBWbInNrqT7VT/JNqwdNxSGddWDrMrGh1lOw=",
+      "m5gh704hlkqtdys2blf83twdl2r0pwcv",
+      "14c34xr771wn93wtdyq9kx1t7j2y1ydb",
+      "globalsign-domain-verification=7A10D5AFD979C51C98BCA00B251102F3",
+      "google-site-verification=pPwlV980KnyiBTpL11QH-KNFR8NbPqfNsj404iEMMJg",
+      "zncxhjkw1p4h6rmgbnl85p7678l1s0lb",
+      "nqh074ffxh6cg354v5qgtv438vbr1fmr",
+      "MS=ms10282021",
+      "wiz-domain-verification=f6d7b4796a53850158dcd7b59c561bba5e2feb91b0cb3cd73862a74e9a5b8b69",
+      "MS=10282021",
+      "asv=a6ff2b03eec006950453331350d45f6c",
+      "cursor-domain-verification-7fs8ee=rEZ116QCrFd84UcWz19goUcf5",
+      "google-site-verification=h8wm7P17qMYkSfARepjour4urvRE7ql07w2fHZgJIDg",
+      "5ajcnlk.ng.impervadns.net"
+    ]
+  },
+  "domain": "paytm.com",
+  "elapsed_ms": 14897,
+  "errors": [],
+  "evidence_dir": "evidence\\trc-dabe5e1da6_paytm.com",
+  "input": "https://www.paytm.com",
+  "lexical": {
+    "features": {
+      "brand_keyword_position": 0.0,
+      "brand_to_reg_length_ratio": 0.0,
+      "consonant_ratio": 0.6666666666666666,
+      "digit_ratio": 0.0,
+      "domain_length": 9.0,
+      "dot_ratio": 0.1111111111111111,
+      "entropy": 2.94770277922009,
+      "has_account": 0.0,
+      "has_auth": 0.0,
+      "has_banking": 0.0,
+      "has_brand_in_path": 0.0,
+      "has_confirm": 0.0,
+      "has_cse_keyword_in_subdomain": 0.0,
+      "has_https": 0.0,
+      "has_ip": 0.0,
+      "has_login": 0.0,
+      "has_paypal": 0.0,
+      "has_repeated_digits": 0.0,
+      "has_secure": 0.0,
+      "has_security": 0.0,
+      "has_signin": 0.0,
+      "has_support": 0.0,
+      "has_update": 0.0,
+      "has_verify": 0.0,
+      "hyphen_ratio": 0.0,
+      "is_common_tld": 1.0,
+      "is_malicious_gtld": 0.0,
+      "is_punycode": 0.0,
+      "legitimate_trigram_count": 0.0,
+      "longest_consonant_run": 3.0,
+      "max_repeated_trigram": 1.0,
+      "min_brand_levenshtein": 0.6666666666666666,
+      "num_hyphens": 0.0,
+      "num_special_chars": 0.0,
+      "registered_domain_length": 9.0,
+      "special_char_ratio": 0.0,
+      "subdomain_count": 0.0,
+      "subdomain_depth": 0.0,
+      "suspicious_trigram_count": 1.0,
+      "tld_length": 3.0,
+      "trigram_suspicion_ratio": 0.3333333333333333,
+      "unique_trigram_ratio": 1.0,
+      "vowel_ratio": 0.2222222222222222
+    },
+    "risk_factors": [],
+    "score": 0.1125,
+    "suspicious_keywords": []
+  },
+  "phishing_score": 0.1125,
+  "risk_factors": [
+    {
+      "detail": "Visual evidence was captured and no suspicious OCR phrases were found.",
+      "name": "Screenshot captured",
+      "score_impact": 0.0,
+      "severity": "info"
+    }
+  ],
+  "stages": [
+    {
+      "details": {
+        "allow_private": false,
+        "private_overrides": []
+      },
+      "duration_ms": 14,
+      "name": "SSRF validation",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "keywords": [],
+        "score": 0.1125
+      },
+      "duration_ms": 69,
+      "name": "Lexical analysis",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "a_records": [
+          "172.65.64.51",
+          "172.65.64.50"
+        ],
+        "domain_age_days": 8378,
+        "registrar": "GoDaddy.com, LLC"
+      },
+      "duration_ms": 2075,
+      "name": "DNS and WHOIS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "has_tls": true,
+        "issuer": "countryName=US, organizationName=DigiCert Inc, organizationalUnitName=www.digicert.com, commonName=GeoTrust TLS ECC CA G1",
+        "suspicious": false
+      },
+      "duration_ms": 158,
+      "name": "TLS intelligence",
+      "status": "ok"
+    },
+    {
+      "details": {
+        "ocr_suspicious": false,
+        "screenshot_path": "evidence\\trc-dabe5e1da6_paytm.com\\screenshots\\homepage.png",
+        "success": true
+      },
+      "duration_ms": 12579,
+      "name": "Screenshot and OCR",
+      "status": "ok"
+    }
+  ],
+  "started_at": "2026-06-01T02:02:56+00:00",
+  "summary": {
+    "artifact_count": 3,
+    "degraded_stages": [],
+    "headline": "paytm.com is Likely Clean with score 0.1125.",
+    "why_flagged": [
+      "No strong phishing indicators were observed."
+    ]
+  },
+  "tls": {
+    "days_remaining": 115,
+    "domain_in_san": true,
+    "errors": [],
+    "has_tls": true,
+    "issuer": "countryName=US, organizationName=DigiCert Inc, organizationalUnitName=www.digicert.com, commonName=GeoTrust TLS ECC CA G1",
+    "not_after": "Sep 24 23:59:59 2026 GMT",
+    "not_before": "Mar 10 00:00:00 2026 GMT",
+    "san": [
+      "*.paytm.com",
+      "paytm.com"
+    ],
+    "subject": "countryName=IN, stateOrProvinceName=Uttar Pradesh, localityName=Noida, organizationName=One 97 Communications Ltd, commonName=*.paytm.com",
+    "suspicious": false
+  },
+  "trace_id": "trc-dabe5e1da6",
+  "url": "https://paytm.com",
+  "verdict": "Likely Clean",
+  "visual": {
+    "ocr_findings": {
+      "is_suspicious": false,
+      "ocr_risk_score": 0,
+      "phrases_found": []
+    },
+    "ocr_text": "Pay @ LAI) \u2014 Recharge & Bills.\n\nTicket Booking v\n\nRecharges & Bill Payments\n\n&\n\nDTH\nRecharge\n\nla @\n\nFasTag Electricity\nRecharge Bill\n\nMobile\nRecharge\n\nDo Mobile Recharge and Win 7100\ncashback. Promo: TAKEITALL\n\nfbacd Recharge Now >\n\nSwipe left\nto keep it hush\n\nHide your past payments\n\u2018with ft spe\n\nExpense tracking\nmade smarter!\n\n\u2018Now, dawnlosd your statement in\nExcel/POF format\n\now\n\no fF &\n\nFlights Bus Trains Intl Flights\n\n@ One Way Round Trip\n\nFrom To Depart\n\nDelhi (DEL) \u00a9 Mumbai (BOM) Fri, OS Jun 26\n\nSpecial Fares (optional) student ArmedForces Senior Citizen\n\n@ Extra Savings Extra Baggage Upto 600 off Upto7600 off\nPayline Limp\u00bb\n\nPay anyone directly\nfrom your bank\naccount\n\nPay anyone, everywhere. Make contactless & secure\npayments in-stores or online using Paytm UPI or\nDirectly from your Bank Account. Plus, send &\nreceive money from anyone.\n\nGoogle Play\n\n@ App Store\n\nPayments & Services v\n\nPaytm for Business ~ Company v 4 Download App\n\nco) bE\n\nWeen ae cpr eae\nea 00 sHloteiiso 30cht\noo Woon esi we\nLoan EMI View All Bode as\nPayment Products \u2018se.census.gov.in\n\n= Broadband Recharge\ncs) Bill due? Pay now & get rewarded\n\nWe do the math,\nyou do the spending.\n\nCheck total balance ofall your\nlinked bank accounts\n\npaytmtravel\n\nReturn\n\nAdd Return\n\nPassenger & Class\n\n(Traveller, Econo... \\v [ania\n\n%250@\n\nPaid Successfully\n\nTo Ajay Gupta\n\nx\n$\n\ne\n%\n\u00a3\n\nLearn More > )\n\n@ 24x7 Trusted customer support to assist and help you in every step of your journey (\n\nr- Credit Cards\n\nOne destination for\nCredit Cards\n\nPaytm HDFC, SBI Card & Axis Bank Credit Card with\nassured Cashback and incredible offers.\n\nGoprnon >) ome mm\n\nA Paytm\nMoney\n\nSwitch to Paytm Money.\nPay Less, Trade More.\n\nMargin Trading Facility\n(MTF) at 7.99%* p.a.\n\nGet up to 4X Buying Power on 1200+ Stocks at Low\nInterest Rates with Margin Trading Facility by Paytm\nMoney.\n\nInvest MTF >\n\nInvestment in securities market are subject to market risk, read al he related documents carefully\n\u2018before investing, The secures ae quoted as an example and not as 2 recommendation. Margin Funding\n\n{25 subject tothe provisions of SEBI Circular CIUMRD/DP/S4/2017 dated June 13, 2017 and the terms and\n\u2018coneltions mentioned in ights an obligations statement lsuedby the Paytm Money Limited. For detailed\nsciaimerplesse visi: ntps://wwn paytmmoney.com\n\nPayim\n\nBusiness\n\nAccept payments\nonline & offline\n\nMillions of small & big businesses use Paytm to\naccept payments anywhere any time with a wide\nrange of solutions for all kind of merchants\n\nX Investor Relations\n\nHome Financials Filings & Press Releases\n\n+ More about Paytm\n\n+ Company\n\nCareer\n\n+. Recharge & pay bills\n\n+ Pay Loan EMI, Insurance Premiums & Education Fee\n+ Book Travel & Entertainment\n\n+ Investments & Miscellaneous\n\n+ Loans and Credit Cards\n\n+ Financial Tools & Calculators\n\n\u00a9 2025 Paytm\n\nG paytin\n\nInsurance Broking\n\nInsurance ka\nSuper Market\n\nA Smart, Simple & Transparent Platform to Explore &\nPurchase Insurance.\n\nGet It Now >\n\n& Paytm Money\n\nTata Consultancy Services 3,010.90\nFor 30 Quantity, with MTF - Pay Later\n2258175 67,745.25 90,327\n\npayin\n\nPaytm Smart Retail - India\n\n\u201caz=\\\\_ Business overview for \u00ab\n\n%79,00,000> ~\n\n2 80,00,000>\n\n\u2018Try the SettleNow\n\n=\n\nPayments Related nave\n\nNews & Events\n\nCorporate Governance\n\nResources\n\nroiows @ BOO",
+    "report_paths": {
+      "json": "evidence\\trc-dabe5e1da6_paytm.com\\investigation.json",
+      "markdown": "evidence\\trc-dabe5e1da6_paytm.com\\report.md"
+    },
+    "screenshot_path": "evidence\\trc-dabe5e1da6_paytm.com\\screenshots\\homepage.png",
+    "success": true
+  }
+}

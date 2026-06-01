@@ -1,6 +1,7 @@
 import os
 import time
 import asyncio
+import re
 import structlog
 from typing import Dict, Any, Optional
 
@@ -9,6 +10,9 @@ try:
     from PIL import Image
     import cv2
     import numpy as np
+    import platform
+    if platform.system() == 'Windows':
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
     PYTESSERACT_AVAILABLE = True
 except ImportError:
     PYTESSERACT_AVAILABLE = False
@@ -29,6 +33,37 @@ EVIDENCE_DIR = os.getenv("EVIDENCE_DIR", "evidence")
 def _safe_error(exc: Exception) -> str:
     return str(exc).encode("ascii", "replace").decode("ascii")
 
+
+SUSPICIOUS_OCR_PATTERNS = [
+    ("verify your account", r"\bverif(?:y|ication)\s+(?:your\s+)?account\b", 25),
+    ("verify your identity", r"\bverif(?:y|ication)\s+(?:your\s+)?identit(?:y|ies)\b", 25),
+    ("confirm your identity", r"\bconfirm\s+(?:your\s+)?identit(?:y|ies)\b", 25),
+    ("sign in to your account", r"\bsign\s*in(?:\s+to)?(?:\s+your)?\s+account\b", 20),
+    ("login required", r"\b(?:log\s*in|login|sign\s*in)\s+(?:required|now|here|to\s+continue)\b", 20),
+    ("enter your password", r"\b(?:enter|type|provide|input)\s+(?:your\s+)?password\b", 25),
+    ("password", r"\bpassword\b", 15),
+    ("one time password", r"\b(?:one\s*time\s*password|otp)\b", 25),
+    ("account suspended", r"\baccount\s+(?:has\s+been\s+)?(?:suspended|blocked|locked|restricted|disabled)\b", 30),
+    ("unauthorized access", r"\bunauthori[sz]ed\s+access\b", 25),
+    ("security alert", r"\bsecurity\s+(?:alert|warning|notice|verification|check)\b", 20),
+    ("update kyc", r"\b(?:update|complete|verify)\s+(?:your\s+)?kyc\b", 30),
+    ("update billing", r"\b(?:update|confirm|verify)\s+(?:your\s+)?billing\b", 25),
+    ("card number", r"\b(?:(?:enter|type|provide|input)\s+(?:your\s+)?(?:debit\s+|credit\s+)?card|(?:debit\s+|credit\s+)?card\s+number)\b", 20),
+    ("cvv", r"\b(?:cvv|cvc|security\s+code)\b", 25),
+    ("expiry date", r"\bexpir(?:y|ation)\s+date\b", 15),
+    ("net banking", r"\bnet\s*banking\b", 15),
+    ("limited time", r"\b(?:limited\s+time|act\s+now|immediate\s+action)\b", 15),
+]
+
+
+def _normalize_ocr_text(text: str) -> str:
+    normalized = text.lower()
+    normalized = normalized.replace("|", "l")
+    normalized = normalized.replace("0tp", "otp")
+    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+    return re.sub(r"\s+", " ", normalized).strip()
+
+
 class PlaywrightVisualAnalyzer:
     def __init__(self, evidence_dir: str = EVIDENCE_DIR):
         self.evidence_dir = evidence_dir
@@ -46,7 +81,7 @@ class PlaywrightVisualAnalyzer:
     def _safe_domain_path(self, domain: str) -> str:
         return "".join(char if char.isalnum() or char in ".-" else "_" for char in domain)[:255]
 
-    async def capture_screenshot(self, domain: str) -> Optional[str]:
+    async def capture_screenshot(self, target: str) -> Optional[str]:
         if not PLAYWRIGHT_AVAILABLE:
             logger.warning("playwright_unavailable")
             return None
@@ -66,15 +101,16 @@ class PlaywrightVisualAnalyzer:
                 )
                 page = await context.new_page()
 
-                for scheme in ["https", "http"]:
-                    url = f"{scheme}://{domain}"
+                urls_to_try = [target] if target.startswith("http") else [f"https://{target}", f"http://{target}"]
+
+                for url in urls_to_try:
                     try:
                         logger.info("playwright_navigation_started", url=url)
                         await page.goto(url, timeout=PAGE_LOAD_TIMEOUT, wait_until="domcontentloaded")
                         await page.wait_for_timeout(1000)
                         await page.screenshot(path=screenshot_path, full_page=True)
                         await browser.close()
-                        logger.info("playwright_screenshot_captured", domain=domain, path=screenshot_path)
+                        logger.info("playwright_screenshot_captured", target=target, path=screenshot_path)
                         return screenshot_path
                     except PlaywrightTimeoutError:
                         logger.warning("playwright_navigation_timeout", url=url)
@@ -87,7 +123,7 @@ class PlaywrightVisualAnalyzer:
         except PlaywrightTimeoutError:
             return None
         except Exception as exc:
-            logger.warning("playwright_capture_failed", domain=domain, error=_safe_error(exc))
+            logger.warning("playwright_capture_failed", target=target, error=_safe_error(exc))
             return None
 
     def extract_text(self, image_path: str) -> str:
@@ -107,22 +143,18 @@ class PlaywrightVisualAnalyzer:
             return ""
 
     def check_suspicious_phrases(self, text: str) -> Dict[str, Any]:
-        text_lower = text.lower()
-        phrases = [
-            "verify your account",
-            "login required",
-            "account suspended",
-            "update billing",
-            "confirm your identity",
-            "sign in to continue",
-            "unauthorized access"
-        ]
-        
-        found = [p for p in phrases if p in text_lower]
-        
-        # Determine risk score based on phrases
-        score = len(found) * 20
-        is_suspicious = len(found) > 0
+        normalized_text = _normalize_ocr_text(text or "")
+        found: list[str] = []
+        score = 0
+
+        for label, pattern, weight in SUSPICIOUS_OCR_PATTERNS:
+            if re.search(pattern, normalized_text):
+                found.append(label)
+                score += weight
+
+        # A lone low-signal term such as "password" is useful evidence, but
+        # require a stronger aggregate before OCR alone marks the page suspicious.
+        is_suspicious = score >= 20
         
         return {
             "is_suspicious": is_suspicious,

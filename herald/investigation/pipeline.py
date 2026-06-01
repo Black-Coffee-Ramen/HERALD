@@ -71,12 +71,14 @@ class InvestigationPipeline:
         }
         if include_visual:
             with self._degraded_stage(stages, errors, "Screenshot and OCR") as stage:
-                visual = asyncio.run(self._run_visual(domain, os.fspath(evidence_dir)))
+                visual = asyncio.run(self._run_visual(url, os.fspath(evidence_dir)))
                 stage["details"] = {
                     "success": visual.get("success"),
                     "screenshot_path": visual.get("screenshot_path"),
                     "ocr_suspicious": (visual.get("ocr_findings") or {}).get("is_suspicious"),
                 }
+                if not visual.get("success"):
+                    raise RuntimeError(visual.get("error", "Screenshot failed to capture"))
 
         verdict, phishing_score, risk_factors = combine_scores(lexical, dns, tls, visual)
         elapsed_ms = int((time.monotonic() - started) * 1000)
