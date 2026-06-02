@@ -173,7 +173,7 @@ config.local.*
 !CONTRIBUTING.md
 !LICENSE
 !LICENSE.md
-!docs/**/*.md
+!docs/*.md
 
 # =========================
 
