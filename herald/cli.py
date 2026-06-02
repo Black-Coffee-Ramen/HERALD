@@ -214,8 +214,11 @@ def emit_ssrf_error(exc: SSRFProtectionError, target: str, command: str, *, as_j
 
 def execute_pipeline(pipeline: InvestigationPipeline, target: str, *, include_visual: bool, allow_private: bool, quiet: bool):
     if quiet:
+        pipeline.engine.preload()
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             return pipeline.investigate(target, include_visual=include_visual, allow_private=allow_private)
+
+    pipeline.engine.preload()
 
     with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
         progress.add_task("Investigating target...", total=None)

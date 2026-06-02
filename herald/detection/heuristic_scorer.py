@@ -1,5 +1,5 @@
 from herald.detection.interfaces import Scorer
-from herald.detection.models import DetectionResult, RiskFactor
+from herald.detection.models import DetectionResult, RiskFactor, Verdict
 from herald.investigation.scoring import analyze_lexical
 
 class HeuristicScorer(Scorer):
@@ -7,11 +7,11 @@ class HeuristicScorer(Scorer):
         res = analyze_lexical(domain)
         score = res.get("score", 0.0)
         
-        verdict = "Likely Clean"
+        verdict = Verdict.CLEAN
         if score >= 0.7:
-            verdict = "Phishing"
+            verdict = Verdict.PHISHING
         elif score >= 0.35:
-            verdict = "Suspected"
+            verdict = Verdict.SUSPICIOUS
 
         risk_factors = [
             RiskFactor(

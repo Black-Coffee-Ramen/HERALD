@@ -19,3 +19,8 @@ class DetectionEngine:
 
     def score(self, domain: str) -> DetectionResult:
         return self.scorer.score(domain)
+
+    def preload(self) -> None:
+        """Explicitly trigger lazy-loading of models (useful before UI spinners)."""
+        if hasattr(self.scorer.__class__, "predictor"):
+            _ = getattr(self.scorer, "predictor")

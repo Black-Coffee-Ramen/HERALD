@@ -9,7 +9,7 @@ import yaml
 import threading
 
 from herald.db.models import SessionLocal, DomainScan
-from herald.predict_with_fallback import PhishingPredictorV3
+from herald.detection.engine import DetectionEngine
 
 # Basic logger
 logger = logging.getLogger("SocialMonitor")
@@ -32,7 +32,7 @@ class SocialMonitor:
             'twitter.com', 'facebook.com', 'instagram.com', 'linkedin.com'
         ])
         
-        self.predictor = PhishingPredictorV3()
+        self.engine = DetectionEngine(scorer_type="ml")
         
         self.user_agents = [
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
@@ -118,20 +118,22 @@ class SocialMonitor:
                     
                 logger.info(f"Scanning new domain from {channel}: {domain}")
                 try:
-                    res = self.predictor.predict(domain)
+                    res = self.engine.score(domain)
+                    
+                    from herald.detection.models import Verdict, display_verdict
                     
                     # Store in DB
                     new_scan = DomainScan(
                         domain=domain,
-                        label=res.get('status', 'Unknown'),
-                        confidence=res.get('ml_confidence', 0.0),
+                        label=display_verdict(res.verdict),
+                        confidence=res.confidence,
                         is_live=True
                         # We could add source="telegram", channel=channel if DB schema allowed it
                     )
                     session.add(new_scan)
                     session.commit()
                     
-                    if res['status'] == 'Phishing':
+                    if res.verdict == Verdict.PHISHING:
                         logger.warning(f"PHISHING DETECTED via Telegram ({channel}): {domain}")
                         
                 except Exception as e:

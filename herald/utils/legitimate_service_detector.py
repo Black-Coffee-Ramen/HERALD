@@ -45,6 +45,12 @@ class LegitimateServiceDetector:
         r"economictimes\.indiatimes\.com",
         r"nseindia\.com",
         r"bseindia\.com",
+        r"kotak\.com",
+        r"kotak\.bank\.in",
+        r"onlinesbi\.sbi",
+        r"icicibank\.com",
+        r"hdfcbank\.com",
+        r"axisbank\.com",
         
         # Payment gateways
         r"paytm\.com",
@@ -55,7 +61,8 @@ class LegitimateServiceDetector:
         # Known safe domains with banking info
         r"bankbazaar\.com",
         r"paisabazaar\.com",
-        r"policybazaar\.com"
+        r"policybazaar\.com",
+        r"authena\.xyz"
     ]
     
     # Suspicious patterns that might be falsely flagged
@@ -171,6 +178,6 @@ def should_downgrade_prediction(domain, prediction, confidence, features=None):
     """
     if prediction in ['Phishing', 'Suspected']:
         if detector.is_false_positive_candidate(domain, features):
-            print(f"🔧 Downgrading {domain} from {prediction} to Legitimate (known utility)")
+            print(f"Downgrading {domain} from {prediction} to Legitimate (known utility)")
             return 'Legitimate', confidence * 0.3  # Reduce confidence significantly
     return prediction, confidence

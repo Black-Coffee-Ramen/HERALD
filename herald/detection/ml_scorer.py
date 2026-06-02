@@ -1,18 +1,21 @@
+from functools import cached_property
 from herald.detection.interfaces import Scorer
-from herald.detection.models import DetectionResult
-from herald.predict_with_fallback import PhishingPredictorV3
+from herald.detection.models import DetectionResult, normalize_verdict
 
 class MLScorer(Scorer):
-    def __init__(self):
-        self.predictor = PhishingPredictorV3()
+    @cached_property
+    def predictor(self):
+        from herald.predict_with_fallback import PhishingPredictorV3
+        return PhishingPredictorV3()
 
     def score(self, domain: str) -> DetectionResult:
         res = self.predictor.predict(domain, include_visual=False)
         confidence = float(res.get("ml_confidence_adjusted", res.get("ml_confidence", 0.0)))
-        
+        verdict = normalize_verdict(res.get("status"))
+            
         return DetectionResult(
             domain=domain,
-            verdict=res.get("status", "Unknown"),
+            verdict=verdict,
             confidence=confidence,
             scorer="ml",
             model_version=res.get("analysis_type", "ml-v7"),
@@ -26,5 +29,9 @@ class MLScorer(Scorer):
             },
             explanations=[
                 f"ML predictor returned {res.get('status', 'Unknown')} via {res.get('analysis_type', 'ml-v7')}."
-            ]
+            ],
+            threshold=self.predictor.threshold,
+            feature_count=len(self.predictor.feature_names),
+            fallback_triggered=bool(res.get("content_features")),
+            visual_required=bool(res.get("visual_analysis_required", False))
         )

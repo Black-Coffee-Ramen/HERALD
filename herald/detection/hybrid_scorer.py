@@ -19,6 +19,10 @@ class HybridScorer(Scorer):
             scorer="hybrid",
             model_version=f"{res_ml.model_version}+{res_heur.model_version}",
             risk_factors=res_heur.risk_factors,
-            features=res_heur.features,
-            explanations=res_heur.explanations
+            features={**res_heur.features, **res_ml.features},
+            explanations=[*res_ml.explanations, *res_heur.explanations],
+            threshold=res_ml.threshold,
+            feature_count=res_ml.feature_count,
+            fallback_triggered=res_ml.fallback_triggered,
+            visual_required=res_ml.visual_required
         )

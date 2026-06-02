@@ -227,8 +227,19 @@ class PhishingPredictorV3:
             'analysis_type': 'ML-v7-Ensemble'
         }
         
+        # Check legitimate service downgrades
+        from herald.utils.legitimate_service_detector import should_downgrade_prediction
+        initial_status = 'Phishing' if ml_conf >= self.threshold else 'Clean'
+        override_status, overridden_conf = should_downgrade_prediction(domain, initial_status, float(ml_conf), df_features.to_dict(orient='records')[0])
+        
+        if override_status == 'Legitimate':
+            result['status'] = 'Clean'
+            result['ml_confidence'] = round(overridden_conf, 4)
+            result['analysis_type'] = 'ML-v7-Override'
+            return result
+
         # 3. Decision Logic
-        if ml_conf >= self.threshold:
+        if override_status == 'Phishing' or ml_conf >= self.threshold:
             result['status'] = 'Phishing'
             return result
             

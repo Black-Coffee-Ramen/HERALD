@@ -189,8 +189,9 @@ def process_domain(job_data: dict) -> None:
                 result = {"analysis_type": "Whitelist"}
                 logger.info("domain_whitelisted_intercept", domain=domain)
             else:
+                from herald.detection.models import display_verdict
                 detection_res = engine.score(domain)
-                label = detection_res.verdict
+                label = display_verdict(detection_res.verdict)
                 confidence = detection_res.confidence
                 result = {
                     "analysis_type": detection_res.model_version,

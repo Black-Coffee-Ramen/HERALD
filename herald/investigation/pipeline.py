@@ -50,10 +50,11 @@ class InvestigationPipeline:
                 "features": detection_res.features,
                 "explanations": detection_res.explanations,
             }
+            from herald.detection.models import display_verdict
             stage["details"] = {
                 "scorer": detection_res.scorer,
                 "confidence": detection_res.confidence,
-                "verdict": detection_res.verdict,
+                "verdict": display_verdict(detection_res.verdict),
             }
 
         with self._degraded_stage(stages, errors, "DNS and WHOIS intelligence") as stage:
@@ -95,7 +96,8 @@ class InvestigationPipeline:
         if self.engine.scorer_type in ("ml", "hybrid"):
             # Trust the DetectionEngine's sophisticated verdict, but append the
             # heuristic risk factors for UI explainability.
-            verdict = detection_res.verdict
+            from herald.detection.models import display_verdict
+            verdict = display_verdict(detection_res.verdict)
             phishing_score = detection_res.confidence
             
             # Safety net: If the pipeline caught severe OCR phishing indicators that 
