@@ -1,0 +1,571 @@
+\documentclass[12pt,a4paper]{report}
+\usepackage[margin=1in]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage{mdframed}
+\usepackage{enumitem}
+\usepackage{tocloft}
+\usepackage{lmodern}
+
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{keywordcolor}{RGB}{0,0,180}
+\definecolor{commentcolor}{RGB}{80,80,80}
+\definecolor{stringcolor}{RGB}{163,21,21}
+\definecolor{warningbg}{RGB}{255,243,205}
+\definecolor{warningframe}{RGB}{200,150,0}
+\definecolor{notebg}{RGB}{220,235,255}
+\definecolor{noteframe}{RGB}{0,80,180}
+
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  breakatwhitespace=false,
+  frame=single,
+  framesep=3pt,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  keywordstyle=\color{keywordcolor}\bfseries,
+  commentstyle=\color{commentcolor}\itshape,
+  stringstyle=\color{stringcolor},
+  showstringspaces=false,
+  tabsize=4,
+  captionpos=b
+}
+
+\newmdenv[
+  backgroundcolor=warningbg,
+  linecolor=warningframe,
+  linewidth=1.5pt,
+  innertopmargin=6pt,
+  innerbottommargin=6pt,
+  innerleftmargin=10pt,
+  frametitle={\textbf{\color{warningframe}Warning / Observation}},
+  frametitleaboveskip=4pt
+]{warningbox}
+
+\newmdenv[
+  backgroundcolor=notebg,
+  linecolor=noteframe,
+  linewidth=1.5pt,
+  innertopmargin=6pt,
+  innerbottommargin=6pt,
+  innerleftmargin=10pt,
+  frametitle={\textbf{\color{noteframe}Technical Note}},
+  frametitleaboveskip=4pt
+]{notebox}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{HERALD — Technical Documentation}
+\lhead{\leftmark}
+\rfoot{Page \thepage}
+\setlength{\headheight}{14pt}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue,
+  pdftitle={HERALD Technical Documentation},
+  pdfauthor={HERALD Project}
+}
+
+\title{
+  \vspace{2cm}
+  \textbf{\Huge HERALD} \\
+  \vspace{0.5cm}
+  \Large Phishing and Malicious Domain Detection System \\
+  \vspace{0.3cm}
+  \large Complete Technical Reference Documentation \\
+  \vspace{1cm}
+  \normalsize Built with Python, FastAPI, PostgreSQL, Redis,
+  Machine Learning, Playwright, and APScheduler
+}
+\date{\today}
+
+\begin{document}
+\maketitle
+\newpage
+\tableofcontents
+\newpage
+
+\chapter{Project Overview}
+\section{Purpose and Scope}
+HERALD is a real-time phishing and malicious domain detection system. Based on the implementation in \texttt{herald/predict\_with\_fallback.py} and the ingestion queues, HERALD detects domains impersonating legitimate brands (e.g., typosquatting, homograph attacks) by analyzing raw URLs extracted from Certificate Transparency logs via CertStream. The system is designed for cybersecurity analysts, evident from the \texttt{/api/feedback} and whitelist endpoints, allowing human-in-the-loop validation of "Suspected" or "Phishing" verdicts. HERALD operates at scale by decoupling URL ingestion from heavy Machine Learning inference using a Redis queue (\texttt{domain\_analysis\_queue}), supported by horizontally scalable Docker workers.
+
+\section{System Architecture}
+HERALD uses a decoupled, event-driven architecture. The ingestion layer (e.g., CertStream listeners) pushes newly discovered domains to a Redis list. The Worker nodes (\texttt{herald.monitoring.queue\_worker}) continuously poll Redis. When a domain is dequeued, it triggers the Feature Extraction layer to pull lexical, DNS, and WHOIS features. These features are assembled into a vector and passed to the ML Inference pipeline (RandomForest/XGBoost models loaded via \texttt{joblib}). The resulting verdict is stored in PostgreSQL via SQLAlchemy. The API Layer (FastAPI) exposes this data synchronously to the React/Tailwind frontend dashboard.
+
+\begin{verbatim}
++-------------------+       +-----------------+       +-------------------+
+| CertStream Ingest | ----> | Redis Queue     | ----> | Queue Worker      |
++-------------------+ LPUSH +-----------------+ RPOP  +---------+---------+
+                                                                |
++-------------------+       +-----------------+       +---------v---------+
+| React Dashboard   | <---- | FastAPI Backend | <---- | ML Inference      |
++-------------------+ HTTP  +--------+--------+  DB   +-------------------+
+                                     |
+                            +--------v--------+
+                            | PostgreSQL DB   |
+                            +-----------------+
+\end{verbatim}
+
+\section{Technology Stack}
+\begin{longtable}{|p{3cm}|p{3cm}|p{2cm}|p{6cm}|}
+\hline
+\textbf{Component} & \textbf{Technology} & \textbf{Version} & \textbf{Role in HERALD} \\
+\hline
+\endhead
+Backend API & FastAPI & $\geq$0.100.0 & Provides REST endpoints for dashboard \\
+Server & Uvicorn & $\geq$0.23.0 & ASGI web server running FastAPI \\
+Database & PostgreSQL & N/A & Primary persistent storage for detections \\
+ORM & SQLAlchemy & $\geq$2.0.0 & Python object mapping for database queries \\
+Broker & Redis & $\geq$5.0.0 & In-memory message queue for async tasks \\
+Job Scheduler & APScheduler & $\geq$3.10.0 & Background task scheduling \\
+Data Parsing & pandas / numpy & $\geq$2.0.0 & Data manipulation for ML features \\
+Machine Learning & scikit-learn & $\geq$1.0.0 & RandomForest inference engine \\
+Gradient Boost & xgboost & $\geq$1.5.0 & Advanced tree models \\
+Web Scraping & BeautifulSoup & $\geq$4.12.0 & HTML parsing for visual features \\
+Headless Browser & Selenium & $\geq$4.15.0 & Rendering malicious pages for screenshots \\
+Image Proc & OpenCV / Pillow & $\geq$4.8.0 & Visual similarity perceptual hashing \\
+Ingestion & certstream & $\geq$1.6.0 & Real-time TLS certificate log ingestion \\
+\hline
+\end{longtable}
+
+\section{Data Flow Narrative}
+When a URL is submitted via \texttt{POST /api/scan} or intercepted by CertStream, it is pushed to the \texttt{domain\_analysis\_queue} in Redis. A background Python process running \texttt{herald.monitoring.queue\_worker} dequeues the payload and calls \texttt{process\_domain()}. This function first queries the \texttt{Whitelist} table via SQLAlchemy; if bypassed, it calls \texttt{predict\_domain()} in \texttt{herald/predict\_with\_fallback.py}. This invokes the lexical extractor to build a numerical feature vector. The vector is passed to the loaded \texttt{ensemble\_v6.joblib} model, generating a probability score. Scores above 0.65 are labeled \texttt{Phishing}. The worker persists the \texttt{DomainScan} object to PostgreSQL. Finally, the analyst views it via the dashboard, fetching it through \texttt{GET /api/detections}.
+
+\section{Directory Structure and Module Map}
+\begin{itemize}
+\item \texttt{herald/}: Core application package housing the API, workers, models, and ML pipelines.
+  \begin{itemize}
+  \item \texttt{herald/api/}: FastAPI routers and dependency injection.
+  \item \texttt{herald/core/}: Core logic and configuration, including JWT authentication.
+  \item \texttt{herald/db/}: SQLAlchemy models and session management.
+  \item \texttt{herald/monitoring/}: Queue workers and background schedulers.
+  \item \texttt{herald/utils/}: Shared utilities like logging and PDF generation.
+  \end{itemize}
+\item \texttt{scripts/}: Standalone Python scripts for maintenance (e.g., \texttt{health\_monitor.py}).
+\item \texttt{docker/}: Dockerfiles and Nginx configurations.
+\item \texttt{frontend/}: Next.js React and Tailwind source code for the dashboard.
+\item \texttt{models/}: Serialized ML models (\texttt{.joblib}) and schema definitions.
+\end{itemize}
+
+\chapter{Project Configuration}
+\section{Dependency Manifest}
+\begin{longtable}{|p{3.5cm}|p{2cm}|p{3.5cm}|p{5cm}|}
+\hline
+\textbf{Package} & \textbf{Version} & \textbf{Used By} & \textbf{Purpose in HERALD} \\
+\hline
+\endhead
+pandas & $\geq$2.0.0 & \texttt{predict\_with\_fallback.py} & DataFrame generation for model input \\
+scikit-learn & $\geq$1.0.0 & ML pipeline & Tree-based model execution \\
+certstream & $\geq$1.6.0 & Ingestion layer & WebSocket client for TLS logs \\
+slowapi & $\geq$0.1.8 & \texttt{api/main.py} & Rate limiting the API endpoints \\
+reportlab & $\geq$4.0.0 & \texttt{utils/export.py} & Generating PDF evidence exports \\
+passlib[bcrypt] & $\geq$1.7.4 & \texttt{core/auth.py} & Password hashing for JWT auth \\
+\hline
+\end{longtable}
+
+\section{Environment Configuration}
+\begin{longtable}{|p{3.5cm}|p{1.5cm}|p{5cm}|p{2cm}|}
+\hline
+\textbf{Variable} & \textbf{Type} & \textbf{Controls} & \textbf{Required?} \\
+\hline
+\endhead
+\texttt{REDIS\_HOST} & String & Hostname of the Redis broker. & Yes \\
+\texttt{SECRET\_KEY} & String & Cryptographic key for signing JWT tokens. & Yes \\
+\hline
+\end{longtable}
+
+\section{Docker Configuration}
+HERALD utilizes Docker Compose to orchestrate three primary services: \texttt{redis}, \texttt{api}, and \texttt{worker}. 
+\begin{itemize}
+\item \textbf{redis}: Uses \texttt{redis:7-alpine}. Starts with \texttt{--appendonly yes} to persist the job queue to disk to survive container restarts.
+\item \textbf{api}: Uses the local \texttt{docker/Dockerfile}. Runs \texttt{uvicorn herald.api.main:app} on port 8000. Depends on \texttt{redis} healthchecks. Limited to 512MB RAM to prevent OOM cascade.
+\item \textbf{worker}: Uses the local \texttt{docker/Dockerfile}. Runs \texttt{python -m herald.monitoring.queue\_worker}. Limited to 1GB RAM to support ML model loading in Pandas.
+\end{itemize}
+
+\section{Build and Entry Points}
+The system has two distinct entry points. The synchronous API is booted via Uvicorn (\texttt{uvicorn herald.api.main:app}), serving HTTP traffic. The asynchronous processing pipeline is initiated by running \texttt{python -m herald.monitoring.queue\_worker}, which establishes a long-lived connection to Redis and enters an infinite polling loop.
+
+\chapter{HERALD Core Module}
+
+\section{File: \texttt{herald/predict\_with\_fallback.py}}
+\subsection*{File Header}
+This file serves as the primary intelligence engine of the HERALD system. It houses the \texttt{PhishingPredictorV3} class, which orchestrates the two-stage inference architecture (v7) that merges lexical feature extraction, live network querying (DNS, SSL), WHOIS age lookups, and computer vision (CV/OCR) fallbacks. The system absolutely cannot function without this file, as it transforms raw domains into probabilistic phishing verdicts. Architecturally, it is the primary pipeline stage downstream of the ingestion workers (\texttt{queue\_worker.py}) and upstream of the PostgreSQL database writes.
+
+\subsection{Imports and External Dependencies}
+\begin{itemize}
+\item \texttt{os}, \texttt{time}, \texttt{warnings}, \texttt{datetime}: Core Python modules used for path resolution, timeout tracking, warning suppression, and date arithmetic (WHOIS age computation).
+\item \texttt{joblib}: Required to deserialize the serialized Scikit-Learn/XGBoost machine learning models (\texttt{ensemble\_v7.joblib}).
+\item \texttt{pandas as pd}, \texttt{numpy as np}: Fundamental data structures for creating the DataFrame feature vectors required by the model.
+\item \texttt{yaml}: Parses the \texttt{config.yaml} file to extract operational thresholds.
+\item \texttt{socket}, \texttt{ssl}: Opens raw TCP sockets to port 443 to extract SSL certificates, bypassing normal HTTP validation to analyze malicious certs safely.
+\item \texttt{dns.resolver}: Performs A, MX, and TXT (SPF) lookups to gather network reputation features.
+\item \texttt{whois}: Extracts domain registration dates to compute \texttt{domain\_age\_days}.
+\item \texttt{herald.features.lexical\_features}: Local import providing \texttt{extract\_url\_features} and \texttt{CSE\_KEYWORDS} to process the string characteristics of the URL.
+\item \texttt{herald.core.cv\_ocr\_analyzer}: Local import providing the \texttt{CVOCRAnalyzer} class, which acts as the Stage 2 fallback for visually identifying brands.
+\item \texttt{herald.features.content\_features}: Local import providing \texttt{extract\_content\_features} to scan raw HTML payloads for obfuscated JS and login forms.
+\end{itemize}
+
+\subsection{Classes}
+
+\subsubsection{Class: PhishingPredictorV3}
+This class models the complete classification pipeline. It is defined as a class rather than a standalone function to cache heavy resources in memory (specifically the deserialized Random Forest and XGBoost models, and the OCR analyzer) so they persist across multiple domain analysis requests in the polling worker.
+
+\textbf{Instance Variables:}
+\begin{longtable}{|p{3cm}|p{3cm}|p{3cm}|p{5cm}|}
+\hline
+\textbf{Variable} & \textbf{Type} & \textbf{Set Where} & \textbf{Role} \\
+\hline
+\endhead
+\texttt{ensemble} & Dict & \texttt{\_\_init\_\_} & Contains the loaded model binaries. \\
+\texttt{rf} & RandomForestClassifier & \texttt{\_\_init\_\_} & The scikit-learn model object. \\
+\texttt{xgb} & XGBClassifier & \texttt{\_\_init\_\_} & The XGBoost model object. \\
+\texttt{feature\_names} & List[str] & \texttt{\_\_init\_\_} & The exact column names expected by the model. \\
+\texttt{threshold} & Float & \texttt{\_\_init\_\_} & The probability score above which a domain is deemed Phishing. Default is 0.65. \\
+\texttt{cse\_keywords} & List[str] & \texttt{\_\_init\_\_} & Vocabulary of protected brands to match against. \\
+\texttt{fallback\_trigger} & Float & \texttt{\_\_init\_\_} & Threshold (0.30) that triggers Stage 2 processing. \\
+\texttt{\_ocr\_analyzer} & CVOCRAnalyzer & Lazy Init & Singleton instance for the screenshot engine. \\
+\hline
+\end{longtable}
+
+\paragraph{Method: \_\_init\_\_}
+\textbf{Signature:} \texttt{\_\_init\_\_(self, model\_path="models/ensemble\_v7.joblib", config\_path="config.yaml")} \\
+Initializes the class by checking if the model exists locally or relative to the project root. It uses \texttt{joblib.load} to pull the binaries into RAM, overriding thresholds with \texttt{config.yaml} values if present. It lazily initializes \texttt{\_ocr\_analyzer} to \texttt{None} to save startup time and memory.
+
+\paragraph{Method: get\_network\_features}
+\textbf{Signature:} \texttt{get\_network\_features(self, domain)} \\
+\textbf{Return Type:} \texttt{Dict[str, int]} \\
+Walkthrough:
+1. Initializes a dictionary with default values (-1 or 0) for network features.
+2. Creates an unverified SSL context (\texttt{CERT\_NONE}) to connect to the domain on port 443. This is a critical security bypass required to inspect potentially malicious, self-signed certificates without the script crashing.
+3. Extracts \texttt{issuer}, \texttt{subjectAltName}, \texttt{notBefore}, and \texttt{notAfter} from the peer certificate to compute \texttt{is\_lets\_encrypt}, domain match, and certificate age in days.
+4. Uses \texttt{dns.resolver} with a strict 3-second timeout to query A, MX, and TXT records, returning 1 if present and 0 if missing. This is a deliberate performance constraint to ensure the queue doesn't block on dead domains.
+\textbf{Side Effects:} Performs network I/O over TCP and UDP. 
+
+\paragraph{Method: predict}
+\textbf{Signature:} \texttt{predict(self, domain, cse\_name=None)} \\
+\textbf{Return Type:} \texttt{Dict[str, Any]} \\
+Walkthrough:
+1. Passes the raw domain to \texttt{extract\_url\_features} to generate a base DataFrame.
+2. Extends the DataFrame with boolean flags for common TLDs and brand keywords.
+3. Merges the dictionary returned from \texttt{get\_network\_features()} and \texttt{get\_whois\_age()}.
+4. Ensures the feature vector \texttt{X} perfectly aligns with \texttt{self.feature\_names}. Missing values are filled with -1.
+5. Invokes \texttt{predict\_proba} on both the RF and XGB models, computing an ensemble score via a weighted average: \texttt{0.6 * xgb\_proba + 0.4 * rf\_proba}.
+6. If the score exceeds \texttt{self.threshold} (0.65), it terminates early and returns 'Phishing'.
+7. If the score falls in the "borderline" range (0.35 - 0.65), it invokes \texttt{extract\_content\_features} which hits the live website to look for password fields, obfuscated JS, and cross-domain form actions. It applies a heuristic boost (+0.15 for login forms) to the ML score.
+8. If the score remains borderline (but above \texttt{fallback\_trigger}), it triggers the computationally expensive \texttt{ocr\_analyzer} to take a Playwright screenshot and compare visual hashes.
+\textbf{Side Effects:} Extensive network I/O, potential Playwright browser spawns, heavy CPU usage during tree inference.
+
+\begin{lstlisting}[language=Python]
+rf_proba = self.rf.predict_proba(X)[0, 1]
+xgb_proba = self.xgb.predict_proba(X)[0, 1]
+ml_conf = 0.6 * xgb_proba + 0.4 * rf_proba
+
+if 0.35 <= ml_conf <= 0.65:
+    content_feats = extract_content_features(domain)
+    # Simple rule-based boost on top of ML score
+    boost = 0.0
+    if content_feats.get('has_password_field') and content_feats.get('has_login_form'):
+        boost += 0.15
+\end{lstlisting}
+
+\subsection{Critical Observations}
+\begin{warningbox}
+\textbf{Security Warning: Unverified SSL Context} \\
+In \texttt{get\_network\_features}, \texttt{ssl.CERT\_NONE} is explicitly used. While necessary for threat intelligence, this exposes the worker to potential Man-in-the-Middle (MitM) interceptions. The data retrieved here should never be executed or treated as trusted.
+\end{warningbox}
+
+\begin{notebox}
+\textbf{Design Decision: Stage 2 Fallback} \\
+The two-stage pipeline is an elegant tradeoff. By aggressively returning verdicts for scores $>0.65$ or $<0.30$, HERALD avoids spending 3-5 seconds pulling HTML/screenshots for obvious benign domains, preserving horizontal scaling capacity.
+\end{notebox}
+
+\chapter{Scripts}
+\section{File: \texttt{scripts/health\_monitor.py}}
+\subsection*{File Header}
+This script operates as an independent watchdog process, actively probing the synchronous FastAPI endpoints to detect system degradation. If HERALD's REST API goes down or reports unhealthy worker connections, this script trips and emits alerts. Architecturally, it sits outside the core request path as an active observer, making HTTP GET requests to \texttt{/api/health} and triggering placeholder SMTP alerts.
+
+\subsection{Imports and External Dependencies}
+\begin{itemize}
+\item \texttt{time}, \texttt{sys}: Used for timing logic and directing log outputs to stdout.
+\item \texttt{logging}: Configures a basic dual-handler logger writing to both the console and \texttt{health\_monitor.log}.
+\item \texttt{requests}: An external library used to fire HTTP GET queries against the FastAPI backend, deliberately configured with a 5-second timeout to fail fast.
+\end{itemize}
+
+\subsection{Standalone Functions}
+\subsubsection{Function: send\_email\_alert}
+\textbf{Signature:} \texttt{send\_email\_alert(subject, body)} \\
+\textbf{Description:} Currently a stubbed implementation containing commented-out \texttt{smtplib} code. It uses the \texttt{logger} to record a critical error banner whenever an alert condition is met. This function is impure as it generates side-effect logging.
+
+\subsubsection{Function: check\_health}
+\textbf{Signature:} \texttt{check\_health()} \\
+\textbf{Return Type:} \texttt{None} \\
+Walkthrough:
+1. Wraps the logic in a \texttt{requests.exceptions.RequestException} handler to catch network timeouts or connection refusals.
+2. Fires a GET request to \texttt{http://127.0.0.1:8000/api/health} with \texttt{timeout=5}.
+3. Checks the \texttt{status\_code}. If not 200, calls \texttt{send\_email\_alert}.
+4. Parses the JSON body. If the \texttt{status} key is not \texttt{"healthy"} (e.g., if the worker is offline or Redis is down), it warns of a degraded system and fires an alert.
+\textbf{Side Effects:} HTTP outbound requests and logging.
+
+\chapter{Machine Learning Pipeline}
+\section{ML Module Overview}
+HERALD utilizes a robust machine learning pipeline relying heavily on iterative, versioned models. The \texttt{ml/} and \texttt{scripts/} directories contain numerous retraining scripts (from \texttt{v2} to \texttt{v9}) demonstrating a history of active data curation, feature ablation, and hyperparameter tuning. The pipeline trains a dual-ensemble combining a scikit-learn \texttt{RandomForestClassifier} (strong at variance reduction on lexical features) and an \texttt{XGBClassifier} (gradient boosting). The models are trained offline, evaluated via K-Fold Cross Validation, and serialized to \texttt{models/} using \texttt{joblib}.
+
+\section{Feature Engineering}
+HERALD computes numeric features primarily derived from URL lexical traits. Examples include \texttt{is\_malicious\_gtld}, \texttt{min\_brand\_levenshtein}, and \texttt{brand\_to\_reg\_length\_ratio}. The string URL is broken into tokens, and the minimum Levenshtein edit distance against the \texttt{CSE\_KEYWORDS} array is computed. This specifically targets typosquatting (e.g., \texttt{g00gle.com} vs \texttt{google.com}).
+
+\section{Model Architecture}
+\subsection{File: \texttt{ml/retrain\_v3.py}}
+This script exemplifies the HERALD training methodology.
+\begin{itemize}
+\item \textbf{Data Ingestion:} It concatenates real-world ground truth datasets with synthetic datasets (\texttt{synthetic\_phish\_v2.csv}).
+\item \textbf{Class Imbalance:} XGBoost utilizes \texttt{scale\_pos\_weight} computed dynamically as \texttt{(y == 0).sum() / (y == 1).sum()}, while Random Forest uses \texttt{class\_weight='balanced'}.
+\item \textbf{Ensemble Strategy:} The models are ensembled via simple unweighted average voting during testing: \texttt{(rf\_pb + xgb\_pb) / 2}. (Note: By v7, as seen in \texttt{predict\_with\_fallback.py}, this shifted to a 60/40 weighted split favoring XGBoost).
+\item \textbf{Evaluation:} Employs a 5-Fold Stratified CV, optimizing for a decision boundary threshold of \texttt{0.571} to hit specific Precision ($\ge 0.93$) and Recall ($\ge 0.87$) goals.
+\end{itemize}
+
+\begin{lstlisting}[language=Python]
+xgb = XGBClassifier(n_estimators=300, max_depth=8, learning_rate=0.03, 
+                    scale_pos_weight=scale_pos, random_state=42, eval_metric='logloss')
+rf = RandomForestClassifier(n_estimators=1000, class_weight='balanced', 
+                            max_depth=15, random_state=42)
+\end{lstlisting}
+
+\section{Feature Vector}
+\begin{longtable}{|p{1cm}|p{5cm}|p{2cm}|p{2cm}|p{4cm}|}
+\hline
+\textbf{Index} & \textbf{Feature Name} & \textbf{Type} & \textbf{Range} & \textbf{Computation Source} \\
+\hline
+\endhead
+1 & \texttt{min\_brand\_levenshtein} & Numeric & $[0, \infty)$ & URL Tokenization \\
+2 & \texttt{is\_malicious\_gtld} & Boolean & $\{0, 1\}$ & URL Suffix Match \\
+3 & \texttt{has\_brand\_in\_path} & Boolean & $\{0, 1\}$ & URL Path Inspection \\
+4 & \texttt{domain\_age\_days} & Numeric & $[-1, \infty)$ & python-whois Library \\
+5 & \texttt{is\_lets\_encrypt} & Boolean & $\{0, 1\}$ & SSL Cert Issuer Parsing \\
+\hline
+\end{longtable}
+
+\chapter{Feature Extraction Subsystem}
+\section{Overview}
+The feature extraction subsystem in \texttt{herald/features/} transforms raw URLs and domains into high-dimensional numerical vectors and visual hashes suitable for ML inference and Computer Vision comparisons. It is segmented by signal type: Lexical, DNS, WHOIS, SSL, Content (HTML), and Visual Similarity.
+
+\section{Extractor: Lexical Features (\texttt{lexical\_features.py})}
+This module exclusively processes the string characteristics of the URL. It is pure and does not perform any network I/O, allowing it to run in $<10ms$.
+\begin{itemize}
+\item \textbf{External Dependencies:} \texttt{tldextract} to safely parse the Top Level Domain (TLD), and \texttt{fuzzywuzzy} / \texttt{Levenshtein} to compute string edit distances against the \texttt{CSE\_KEYWORDS} array.
+\item \textbf{Input Contract:} Accepts a Pandas DataFrame containing a column of raw domains/URLs.
+\item \textbf{Output Contract:} Returns a heavily mutated DataFrame containing entirely numerical features (e.g., length metrics, special character counts, keyword booleans).
+\end{itemize}
+
+\subsection{Function: extract\_url\_features}
+\textbf{Signature:} \texttt{extract\_url\_features(df, domain\_col='domain')} \\
+\textbf{Return Type:} \texttt{pd.DataFrame} \\
+Walkthrough:
+1. Iterates over the DataFrame using vectorized string operations (\texttt{str.count}) to tabulate the frequency of \texttt{'-', '.', '@', '\_', '?'} in the URL string.
+2. Applies \texttt{tldextract} to separate the subdomain, domain, and suffix.
+3. Computes ratios, such as \texttt{vowel\_consonant\_ratio} and \texttt{digit\_to\_letter\_ratio}.
+4. Most critically, iterates over \texttt{CSE\_KEYWORDS} and computes the minimum Levenshtein distance between the extracted domain string and the protected brand names. This yields \texttt{min\_brand\_levenshtein}.
+
+\section{Extractor: Visual Similarity (\texttt{visual\_similarity.py})}
+This module handles Stage 2 fallback processing, rendering the live website to compare it against known brand templates.
+\begin{itemize}
+\item \textbf{External Dependencies:} \texttt{Playwright} for headless browser rendering, \texttt{OpenCV} and \texttt{Pillow} for image hashing.
+\item \textbf{Input Contract:} Raw domain string.
+\item \textbf{Output Contract:} Float representing perceptual similarity score.
+\end{itemize}
+\textbf{Failure Modes:} Highly susceptible to network timeouts and bot-protection mechanisms (e.g., Cloudflare CAPTCHAs) which return noisy/blank screenshots.
+
+\chapter{Ingestion and Data Pipeline}
+\section{Ingestion Sources}
+HERALD ingests URLs from two primary sources:
+1. \textbf{Manual Analyst Submission:} via the \texttt{POST /api/scan} REST endpoint.
+2. \textbf{CertStream Integration:} A continuous WebSocket listener subscribing to Certificate Transparency (CT) logs, extracting domains from newly minted SSL certificates in real-time.
+
+\section{Queue and Job Management}
+Because CertStream emits tens of thousands of domains per minute, performing synchronous ML inference and DNS/WHOIS lookups would immediately crash the system. 
+HERALD resolves this via a Redis-backed queue (\texttt{domain\_analysis\_queue}).
+\begin{itemize}
+\item \textbf{Producer:} The FastAPI endpoint and CertStream listener perform an atomic \texttt{LPUSH} to Redis.
+\item \textbf{Consumer:} The \texttt{queue\_worker.py} process runs an infinite loop, executing a blocking \texttt{BRPOP} to consume domains one at a time.
+\end{itemize}
+
+\section{Scheduler}
+The system utilizes \texttt{APScheduler} to manage recurring background tasks without blocking the main event loop.
+\begin{itemize}
+\item \textbf{Trigger:} Configured as an \texttt{IntervalTrigger}.
+\item \textbf{Jobs:} Currently configured to run health-checks and potentially flush stale queue items or perform bulk database aggregations.
+\end{itemize}
+
+\chapter{Database Layer}
+\section{Database Overview}
+HERALD utilizes PostgreSQL as its primary persistent store in production, accessed via SQLAlchemy ORM. The connection is managed via a connection pool (\texttt{pool\_size=10}, \texttt{max\_overflow=20}) to handle the concurrent load generated by the background workers and API endpoints. In development, it degrades gracefully to a local SQLite file (\texttt{domain\_history.db}).
+
+\section{Model: DomainScan}
+\textbf{Corresponding Table:} \texttt{domain\_scans} \\
+\textbf{Purpose:} Records the final verdict of every URL analyzed by the pipeline.
+\begin{longtable}{|p{3cm}|p{3cm}|p{2cm}|p{6cm}|}
+\hline
+\textbf{Column Name} & \textbf{SQLAlchemy Type} & \textbf{Nullable} & \textbf{Meaning} \\
+\hline
+\endhead
+\texttt{id} & Integer & No & Primary Key \\
+\texttt{domain} & String & No & The raw domain string (Indexed) \\
+\texttt{target\_cse} & String & Yes & The brand being impersonated \\
+\texttt{source} & String & Yes & E.g., 'certstream', 'api' \\
+\texttt{scan\_date} & DateTime & No & Timestamp of ingestion \\
+\texttt{label} & String & Yes & 'Phishing', 'Suspected', 'Legitimate' \\
+\texttt{confidence} & Float & Yes & ML model probability score \\
+\texttt{is\_live} & Boolean & No & Whether network features resolved \\
+\texttt{analyst\_verdict} & String & Yes & Human override value \\
+\hline
+\end{longtable}
+
+\section{Model: Whitelist}
+\textbf{Corresponding Table:} \texttt{whitelist} \\
+\textbf{Purpose:} A fast-path lookup table allowing analysts to globally exclude known benign domains from heavy processing. Bypasses the ML pipeline entirely.
+
+\chapter{API Layer}
+\section{API Framework}
+HERALD exposes a synchronous REST API built on \textbf{FastAPI} and served by \textbf{Uvicorn}. It leverages FastAPI's Dependency Injection for authentication (\texttt{Depends(get\_current\_user)}) and database session management (\texttt{Depends(get\_db)}). The API employs the \texttt{slowapi} library for rate limiting to prevent abuse of the computationally expensive ML pipeline.
+
+\section{Authentication and Authorization}
+The API uses \textbf{OAuth2 with Password (and hashing)}, issuing JSON Web Tokens (JWT) for stateless authentication.
+\begin{itemize}
+\item Endpoints use \texttt{OAuth2PasswordBearer} to extract the \texttt{Authorization: Bearer <token>} header.
+\item Passwords are hashed using \texttt{bcrypt} via the \texttt{passlib} library.
+\end{itemize}
+
+\subsection{Endpoint: POST /api/scan}
+\textbf{Purpose:} Manually submit a domain for immediate classification. Protected by JWT.
+\begin{itemize}
+\item \textbf{Rate Limit:} 60 requests per minute.
+\item \textbf{Request Body:} \texttt{ScanRequest} (fields: \texttt{domain}, \texttt{target\_cse})
+\item \textbf{Internal Logic:} Instead of executing the ML model synchronously (which could timeout HTTP connections during OCR analysis), it performs an \texttt{lpush} to the Redis \texttt{domain\_analysis\_queue} and immediately returns a \texttt{202 Accepted}.
+\end{itemize}
+
+\subsection{Endpoint: GET /api/detections}
+\textbf{Purpose:} Fetches the latest 50 alerts from the database to populate the React dashboard.
+\begin{itemize}
+\item \textbf{Query Params:} \texttt{limit} (default=50).
+\item \textbf{Internal Logic:} Queries the \texttt{DomainScan} table, ordering by \texttt{scan\_date} descending.
+\end{itemize}
+
+\subsection{Endpoint: GET /api/export/\{domain\}/pdf}
+\textbf{Purpose:} Generates an Executive Summary PDF containing the forensic evidence (ML score, visual hash, WHOIS age) for a specific domain.
+\begin{itemize}
+\item \textbf{Internal Logic:} Queries the database for the domain. If found, utilizes \texttt{reportlab} in an in-memory \texttt{io.BytesIO} buffer to render a PDF document statelessly, returning it as a \texttt{StreamingResponse}.
+\end{itemize}
+
+\chapter{Dashboard}
+\section{Dashboard Overview}
+The frontend is a modern Single Page Application (SPA) built using \textbf{React (Next.js)} and styled with \textbf{Tailwind CSS}. It operates strictly client-side via a static HTML/JS export (\texttt{output: 'export'} in \texttt{next.config.ts}), served via an Nginx reverse proxy within the Docker network.
+
+\section{File: \texttt{frontend/src/app/page.tsx}}
+This is the primary dashboard interface.
+\begin{itemize}
+\item \textbf{Data Fetching:} Utilizes React \texttt{useEffect} to poll \texttt{/api/detections} and \texttt{/api/health} every 5000ms.
+\item \textbf{Authentication Guard:} Retrieves the JWT token from \texttt{localStorage}. If missing, it uses \texttt{next/navigation} router to violently redirect to \texttt{/login}.
+\item \textbf{State Management:} Manages \texttt{detections} (array of domain objects) and \texttt{health} metrics.
+\item \textbf{Interactive Elements:} Provides a manual scan form (\texttt{handleScan}), triggering the \texttt{POST /api/scan} backend logic. It passes the \texttt{Authorization} bearer token on every \texttt{fetch} call.
+\end{itemize}
+
+\chapter{Monitoring}
+\section{File: \texttt{herald/monitoring/queue\_worker.py}}
+This is arguably the most critical component in the decoupled architecture.
+\begin{itemize}
+\item \textbf{Concurrency Model:} A single-threaded infinite \texttt{while} loop that blocks on Redis using \texttt{brpop}. It does not use \texttt{asyncio} since the machine learning inference (Scikit-Learn/XGBoost) and the OpenCV image hashing are heavily CPU-bound and synchronous.
+\item \textbf{Telemetry Tracking:} Emits heartbeat metrics to Redis (e.g., \texttt{SET worker:heartbeat <timestamp>}), which the frontend displays as the "Worker Status: Active" indicator.
+\end{itemize}
+
+\chapter{Tests}
+\section{Test Suite Overview}
+HERALD utilizes the standard \texttt{pytest} framework. The testing philosophy focuses heavily on unit testing the feature extraction pipeline (the most brittle part of the system due to regex and external string manipulation) and integration testing the API endpoints via \texttt{FastAPI.testclient}.
+
+\section{File: \texttt{tests/test\_features.py}}
+\textbf{Purpose:} Validates the deterministic output of the lexical extractor.
+\begin{itemize}
+\item \textbf{Test: test\_levenshtein\_distance} verifies that a known typosquat like \texttt{g00gle.com} returns the mathematically correct minimum edit distance when compared against the \texttt{CSE\_KEYWORDS} array.
+\end{itemize}
+
+\chapter{End-to-End Data Flow}
+\section{USE CASE 1: A new domain is discovered via CertStream}
+\begin{enumerate}
+\item \textbf{Step 1:} CertStream event received via \texttt{herald.ingestion.certstream\_listener.py}.
+\item \textbf{Step 2:} Domain extracted and filtered against top 1M whitelists.
+\item \textbf{Step 3:} \texttt{LPUSH} to Redis \texttt{domain\_analysis\_queue}.
+\item \textbf{Step 4:} \texttt{BRPOP} by \texttt{herald.monitoring.queue\_worker.process\_domain()}.
+\item \textbf{Step 5:} Lexical features extracted via \texttt{herald.features.lexical\_features.extract\_url\_features()}.
+\item \textbf{Step 6:} DNS features extracted via \texttt{dns\_features.py}.
+\item \textbf{Step 7:} WHOIS features extracted via \texttt{whois\_features.py}.
+\item \textbf{Step 8:} Web content fetched via \texttt{requests} (Stage 2) in \texttt{content\_features.py}.
+\item \textbf{Step 9:} HTML/visual features extracted via \texttt{CVOCRAnalyzer}.
+\item \textbf{Step 10:} Feature vector assembled in \texttt{PhishingPredictorV3.predict()}.
+\item \textbf{Step 11:} ML model inference run (\texttt{self.xgb.predict\_proba}).
+\item \textbf{Step 12:} Verdict and score stored to PostgreSQL via \texttt{DomainScan} model.
+\item \textbf{Step 13:} Result fetched by React Dashboard via \texttt{GET /api/detections}.
+\end{enumerate}
+
+\chapter{Evidence Corpus}
+\section{Evidence Directory Structure}
+The \texttt{evidence/} directory contains 65 subdirectories acting as a historical corpus of live phishing domains captured by the system.
+\begin{itemize}
+\item \textbf{IPFS Hosting:} \texttt{bafybe...ipfs.dweb.link} (decentralized, takedown-resistant).
+\item \textbf{Firebase Apps:} \texttt{ee-account-repayment.web.app}.
+\item \textbf{Free Builders:} \texttt{nickmacdonald111.wixsite.com}, \texttt{sonic999.weebly.com}.
+\item \textbf{Typosquats / Homographs:} \texttt{xn----7sbijjcgtere7ng.xn--p1ai} (Punycode).
+\item \textbf{Compromised Subdomains:} \texttt{dkbinge-banking-de.91-218-65-223.plesk.page}.
+\end{itemize}
+
+\chapter{File-by-File Reference Table}
+\begin{longtable}{|p{4cm}|p{2cm}|p{4cm}|p{4cm}|}
+\hline
+\textbf{File Path} & \textbf{Module Type} & \textbf{Purpose} & \textbf{Key Symbols} \\
+\hline
+\endhead
+\texttt{herald/predict\_with\_fallback.py} & ML Inference & Core inference engine & \texttt{PhishingPredictorV3} \\
+\texttt{herald/monitoring/queue\_worker.py} & Worker & Async task consumption & \texttt{process\_domain} \\
+\texttt{herald/api/main.py} & API & REST endpoints & \texttt{trigger\_scan}, \texttt{export\_pdf} \\
+\texttt{herald/db/models.py} & Database & SQLAlchemy Schema & \texttt{DomainScan}, \texttt{Whitelist} \\
+\hline
+\end{longtable}
+
+\chapter{Design Decisions and Technical Debt}
+\section{Observed Architectural Decisions}
+\begin{itemize}
+\item \textbf{Decoupled Queuing:} Redis prevents the ML pipeline from throttling the high-volume CertStream listener.
+\item \textbf{Two-Stage Inference:} Avoids costly Selenium/Playwright operations for 90\% of obvious cases, falling back only when $0.35 \le score \le 0.65$.
+\end{itemize}
+
+\section{Security Analysis}
+\begin{warningbox}
+\textbf{Malicious URL Traversal} \\
+The system explicitly connects to live malicious infrastructure. The \texttt{ssl.CERT\_NONE} flag intentionally disables SSL verification. Sandboxing (e.g., executing Playwright inside a disposable Docker container) is vital to prevent browser exploits from escaping the worker.
+\end{warningbox}
+
+\chapter{Glossary}
+\begin{itemize}
+\item \textbf{Phishing:} Fraudulent attempt to obtain sensitive information by disguising as a trustworthy entity.
+\item \textbf{CertStream:} Intelligence feed of newly issued TLS certificates in real-time.
+\item \textbf{Lexical Features:} Features derived entirely from the URL string structure.
+\item \textbf{Typosquatting:} Registering a domain name extremely similar to a popular brand (e.g., \texttt{g00gle}).
+\item \textbf{Punycode:} Encoding scheme used to convert Unicode characters into ASCII format for URLs (often seen as \texttt{xn--}).
+\end{itemize}
+
+\end{document}

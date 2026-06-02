@@ -1,0 +1,63 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{booktabs,longtable,hyperref,enumitem,graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\title{HERALD --- Complete Technical Walkthrough}
+\author{Repository Architecture Reconstruction}
+\date{May 2026}
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Executive Summary}
+HERALD is a self-hosted phishing-domain detection, investigation, and operations platform. The current implementation combines a Python CLI, FastAPI backend, Redis-backed workers, SQLAlchemy persistence, browser/OCR evidence capture, telemetry, and a Next.js operations console. The active platform model is \texttt{models/ensemble\_v7.joblib}; newer v8/v9 artifacts are research outputs unless explicitly configured.
+
+\section{Problem Statement}
+HERALD targets phishing and typosquatting domains aimed at Critical Sector Entities, especially Indian banking, government, telecom, and public-service brands. It avoids reliance on commercial external threat-intelligence APIs and emphasizes on-premises evidence generation.
+
+\section{Current Architecture}
+\begin{longtable}{p{0.22\linewidth}p{0.70\linewidth}}
+\toprule
+Folder & Role \\
+\midrule
+\texttt{herald/} & Main Python package: API, CLI, workers, ML predictor, feature extraction, telemetry, DB models. \\
+\texttt{frontend/} & Next.js operations console with mock/real/hybrid telemetry. \\
+\texttt{dashboard/} & Legacy Streamlit dashboard; auth does not match current API. \\
+\texttt{scripts/} & Main research and data-engineering pipeline for v4--v9. \\
+\texttt{ml/} & Earlier v2/v3 experiments, mostly superseded by scripts. \\
+\texttt{models/} & Joblib and transformer artifacts; v7 is active runtime default. \\
+\texttt{data/} & Raw, external, processed, and visual-template datasets. \\
+\texttt{evidence/} & Investigation outputs, screenshots, JSON reports, Markdown reports. \\
+\texttt{docker/} & Dockerfile and older compose file. \\
+\texttt{tests/} & Focused CLI investigation unit tests. \\
+\bottomrule
+\end{longtable}
+
+\section{Execution Flow}
+\subsection{CLI}
+The console script \texttt{herald=herald.cli:main} invokes \texttt{InvestigationPipeline}. The pipeline normalizes targets, validates SSRF safety, extracts lexical features, collects DNS/WHOIS/TLS intelligence, optionally captures screenshots and OCR via Playwright/Tesseract, combines scores, and writes evidence under \texttt{evidence/trc-*}.
+
+\subsection{API and Workers}
+FastAPI queues jobs to Redis. The domain worker loads \texttt{PhishingPredictorV3}, uses the v7 ensemble, updates \texttt{DomainScan}, and optionally queues visual work. The visual worker runs Playwright analysis in a subprocess with timeout and circuit-breaker protection, then updates screenshot/OCR columns.
+
+\section{Machine Learning}
+The active predictor uses RandomForest and XGBoost probabilities combined as $0.4 RF + 0.6 XGB$. It extracts lexical, network, and WHOIS features, then applies content boosts for borderline domains. v8/v9 are later experiments but not active in default runtime.
+
+\section{Deployment}
+The top-level \texttt{docker-compose.yml} runs Redis, API, domain worker, and visual worker. It does not run PostgreSQL, Next.js, Streamlit, Certstream, or social monitors. SQLite is the default database unless \texttt{DATABASE\_URL} is set.
+
+\section{Security}
+The repository includes SSRF guards, JWT auth, bcrypt password hashing, non-root Docker user, and visual-worker isolation. Production gaps include permissive CORS, public registration, default JWT secret fallback, incomplete frontend auth, and trusted pickle model loading.
+
+\section{Technical Debt}
+The main reliability issue is in \texttt{RedisReliableQueue}: non-terminal retries are not re-enqueued, and immediate DLQ handling references an out-of-scope \texttt{attempts}. Other debt includes outdated docs, legacy Streamlit, inactive v9 runtime, missing migrations, and duplicated visual-analysis stacks.
+
+\section{Conclusion}
+HERALD has a strong technical core and a substantial research trail. The implementation should now be consolidated around the active CLI/API/worker/Next.js architecture, with queue reliability, model configuration, frontend auth, and deployment hardening as immediate priorities.
+
+\appendix
+\section{Mermaid Diagram Placeholders}
+See \texttt{architecture.mmd}, \texttt{execution\_flow.mmd}, and \texttt{module\_dependency\_graph.mmd}.
+\end{document}

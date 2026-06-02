@@ -1,0 +1,707 @@
+HERALD CISO DEMO PREP
+======================
+
+Audience: CISO, security leadership, SOC leadership, risk/compliance stakeholders.
+Positioning: Herald is best presented as a self-hosted, evidence-driven phishing and suspicious-domain investigation platform with security-operations workflows around triage, telemetry, worker health, and analyst action. Do not oversell it as a full SIEM or EDR replacement. The strongest story is: "We reduce time-to-triage and analyst effort for lookalike/phishing domains by combining ML scoring, enrichment, visual evidence, and explainable investigation artifacts."
+
+Source anchors for opening statistics:
+- IBM Cost of a Data Breach 2025: average global breach cost USD 4.44M and mean time to identify and contain a breach 241 days.
+  https://www.ibm.com/think/x-force/2025-cost-of-a-data-breach-navigating-ai
+- IBM Cost of a Data Breach 2024: average global breach cost USD 4.88M and global breach lifecycle 258 days; financial-sector example 168 days to identify and 51 days to contain.
+  https://newsroom.ibm.com/2024-07-30-ibm-report-escalating-data-breach-disruption-pushes-costs-to-new-highs
+  https://www.ibm.com/think/insights/cost-of-a-data-breach-2024-financial-industry
+- Alert-fatigue reference point: SOC teams are widely reported as overwhelmed by alert volume; treat vendor/blog numbers as directional unless you have your own benchmark.
+  https://www.praetorian.com/security-101/alert-fatigue-and-false-positives/
+
+
+1. MENTAL MODEL: WHAT HERALD DOES
+=================================
+
+The simplest way to explain Herald:
+
+"Herald takes suspicious domains and URLs, enriches them with security context, scores them with ML and rules, builds an investigation timeline with evidence, and gives the analyst a defensible verdict instead of another raw alert."
+
+The full data flow:
+
+1. Ingestion
+------------
+
+Herald starts with candidate security signals. In a mature SOC deployment, those can come from:
+- Certificate Transparency feeds.
+- Newly registered domain feeds.
+- Internal reports from analysts.
+- API submissions from SIEM/SOAR workflows.
+- Mock/demo attack scenarios in the frontend.
+- Future integrations with EDR, proxy logs, email gateways, or DNS logs.
+
+For this repo, the strongest implemented path is suspicious-domain and phishing-domain intake. The API can queue a scan or investigation. The CLI can run a direct investigation. The ingestion layer is where raw input gets normalized: "URL or domain in, clean domain object out."
+
+Say this to a CISO:
+"The platform is source-agnostic. The current strongest use case is phishing/lookalike-domain intelligence, but the architecture is built around the same pattern a SOC already uses: ingest signal, normalize it, score it, enrich it, and turn it into an analyst-ready case."
+
+Concrete example:
+Input:
+  https://hdfc-netbanking-verify.top/login
+
+Normalized target:
+  domain = hdfc-netbanking-verify.top
+  source = api_investigate
+  trace_id = trc-demo-001
+  lifecycle_state = QUEUED
+
+2. Safety and normalization
+---------------------------
+
+Before Herald fetches or screenshots a target, it must protect itself. A suspicious URL is untrusted input. It might point to localhost, cloud metadata endpoints, private IP ranges, or malformed URLs.
+
+The safety layer validates:
+- URL scheme.
+- Hostname.
+- Private or loopback IP behavior.
+- Whether private targets are allowed for testing.
+
+What to say:
+"Because Herald can fetch pages and run browser analysis, SSRF protection is a core control. We do not treat submitted URLs as harmless strings. The platform validates targets before enrichment."
+
+3. Feature engineering
+----------------------
+
+The features layer converts raw strings and observations into measurable risk signals.
+
+For phishing/lookalike domains, Herald extracts signals like:
+- Domain length.
+- Number of hyphens.
+- Digit ratio.
+- Suspicious TLDs such as .xyz, .top, .click.
+- Brand keywords such as SBI, HDFC, ICICI, UIDAI, IRCTC, NIC.
+- Whether the brand appears in the registered domain or only in a subdomain.
+- Fuzzy similarity to protected brands.
+- Punycode/homoglyph indicators.
+- Suspicious words: login, verify, secure, update, account, banking.
+- DNS records.
+- TLS certificate metadata.
+- WHOIS/domain age.
+- Page content signals such as password fields or external form actions.
+- Visual/OCR evidence from screenshots.
+
+What to say:
+"The model is not guessing from a black-box screenshot. It sees structured features that security teams already understand: brand impersonation, domain age, suspicious TLDs, certificate behavior, login forms, and visual credential-harvesting cues."
+
+4. ML scoring
+-------------
+
+Herald's ML model turns the feature vector into a confidence score. The current code uses an ensemble-style approach, combining tree-based model outputs such as Random Forest and gradient boosting/XGBoost-style scoring. The score is then mapped to operational states:
+- Clean: low-risk.
+- Suspected: needs more enrichment or analyst review.
+- Phishing: high-confidence malicious/suspicious verdict.
+- Rejected/Failed/Degraded: operational states when safety checks or dependencies fail.
+
+Important framing:
+"The ML model does not replace analyst judgment. It reduces the candidate set and prioritizes the highest-risk cases. Borderline cases are where Herald deliberately adds more evidence instead of forcing a premature binary decision."
+
+5. Enrichment and investigation
+-------------------------------
+
+Once a domain is suspicious or borderline, Herald enriches it:
+- DNS intelligence.
+- WHOIS/domain age.
+- TLS certificate details.
+- Content inspection.
+- Browser screenshot.
+- OCR text extraction.
+- Risk factor generation.
+- Stage-by-stage timeline.
+
+This becomes an investigation record, not just an alert.
+
+What to say:
+"The analyst does not just see 'ML says phishing.' They see why: new domain, suspicious TLD, HDFC keyword, verify/login wording, password form, external submission, screenshot, and OCR text."
+
+6. Analyst action
+-----------------
+
+The analyst can:
+- Review the verdict and score.
+- Inspect evidence.
+- Export JSON/PDF reports.
+- Mark true positive or false positive.
+- Add legitimate domains to whitelist.
+- Escalate to takedown, blocking, user notification, or SIEM/SOAR playbook.
+- Feed analyst decisions back into model-quality tracking.
+
+What to say:
+"Herald's output is designed to be operational. A detection is only useful if it helps the analyst decide what to do next."
+
+7. Operations and feedback loop
+-------------------------------
+
+The monitoring and telemetry layers show:
+- Queue depth.
+- Worker health.
+- Visual-analysis backlog.
+- Circuit breaker state.
+- Dead-letter queue.
+- API readiness.
+- Redis/Postgres health.
+- Trace spans.
+
+What to say:
+"A CISO should not only ask whether the model works. They should ask whether the detection service is healthy, observable, and recoverable. Herald exposes queue depth, worker liveness, degraded states, and failed-job paths so operators can trust the pipeline."
+
+
+2. 20 CISO-LEVEL QUESTIONS AND ANSWERS
+======================================
+
+1. "What problem does Herald solve that my SIEM does not already solve?"
+
+Answer:
+"Your SIEM is excellent at collecting and correlating broad telemetry, but it often leaves analysts with raw alerts and manual enrichment work. Herald focuses on one high-volume, high-impact workflow: suspicious and lookalike domain investigation. It takes a candidate domain, enriches it, scores it, captures evidence, explains the risk factors, and produces an analyst-ready case. I would position Herald as a detection and investigation layer that can feed the SIEM, not as a SIEM replacement."
+
+2. "How does Herald reduce false positives?"
+
+Answer:
+"It reduces false positives in three ways. First, it uses multiple signal families rather than a single rule: lexical features, DNS, WHOIS, TLS, content, and visual/OCR evidence. Second, it has a 'Suspected' state for borderline cases instead of forcing everything into malicious or benign. Third, analyst feedback and whitelisting can close the loop so known legitimate domains stop consuming analyst time. The key point is that the model score is not the only decision; the evidence bundle helps validate or reject the alert."
+
+3. "What is your measured false positive rate?"
+
+Answer:
+"For a production CISO review, I would bring a benchmark table rather than rely on a single number. The metric I would show is precision, false-positive rate on known legitimate domains, and false-negative rate on recent phishing feeds. The README currently cites high precision on live PhishTank-style validation, but before a buying or board-level conversation I would rerun the benchmark on the latest holdout set and show date, sample size, source, and confidence intervals. My honest answer is: Herald is designed to measure and reduce false positives, and I would validate the rate against your environment before operational rollout."
+
+4. "Can we audit why a domain was classified as phishing?"
+
+Answer:
+"Yes. Herald is built around explainability. The analyst can see the features and evidence behind the verdict: suspicious TLD, brand keyword placement, fuzzy brand match, domain age, certificate metadata, login form detection, external form action, screenshot, OCR text, and stage timeline. The output can be exported as JSON or PDF, which makes it usable for incident review, takedown requests, and audit trails."
+
+5. "Where does our data go?"
+
+Answer:
+"Herald is designed to be self-hosted. The detection pipeline, models, database, queues, and evidence artifacts can run inside your infrastructure. That means domain watchlists, screenshots, OCR text, and investigation records do not need to leave your environment. This is especially important for regulated sectors where screenshots or investigation artifacts may contain sensitive internal context."
+
+6. "Does Herald require VirusTotal, Shodan, or paid threat-intel feeds?"
+
+Answer:
+"No, the core design does not require paid third-party APIs. Herald can use local ML, DNS/TLS/WHOIS enrichment, browser analysis, and internal feeds. It can integrate external intelligence later, but the base value proposition is local, self-hosted, evidence-driven detection."
+
+7. "How does the ML model work in plain English?"
+
+Answer:
+"The model looks at traits that phishing domains tend to have: impersonated brand names, suspicious TLDs, unusual spelling, login or verification words, fresh domain age, certificate behavior, and page-content signals. It converts those traits into a feature vector and produces a risk score. High-confidence cases can be flagged quickly; borderline cases get more evidence through content and visual analysis."
+
+8. "What does PS-02 mean and why should I trust that dataset?"
+
+Answer:
+"PS-02 appears to be a labelled phishing-detection problem-statement dataset, likely from a structured cybersecurity challenge or evaluation track. In Herald, it is used as labelled training and shortlisting data, supplemented by mock data and external phishing/legitimate sources. I would not ask a CISO to trust the name alone. I would show dataset provenance, label definitions, class balance, train/test split methodology, and performance on a recent holdout set."
+
+9. "How does Herald integrate with our existing SOC stack?"
+
+Answer:
+"The practical integration path is API-first. A SIEM, SOAR, EDR workflow, email gateway, DNS platform, or proxy can submit a domain to Herald through the API. Herald returns a verdict and evidence that can be pushed back into the SIEM or used to trigger SOAR playbooks. The dashboard is useful for demonstration and operations, but the long-term enterprise path is API plus webhook/SOAR integration."
+
+10. "Can it map detections to MITRE ATT&CK?"
+
+Answer:
+"For phishing-domain workflows, the closest ATT&CK alignment is initial access via phishing and supporting infrastructure techniques such as domain registration, masquerading, and credential harvesting behaviors. I would present MITRE mapping as a coverage layer: Herald detects phishing infrastructure and credential-harvesting indicators, then maps those findings to ATT&CK tactics such as Initial Access and Credential Access. I would not claim full ATT&CK coverage across endpoint, lateral movement, or exfiltration unless those telemetry sources are integrated."
+
+11. "What is the analyst efficiency gain?"
+
+Answer:
+"The efficiency gain comes from removing manual enrichment. Instead of asking an analyst to check WHOIS, DNS, TLS, page content, screenshots, and brand similarity by hand, Herald packages that into one workflow. The KPI I would show is time-to-triage per domain: manual process versus Herald-assisted process. For the demo, I would show that a suspicious domain can move from submission to enriched evidence in minutes or seconds depending on visual analysis."
+
+12. "How does it handle model uncertainty?"
+
+Answer:
+"It does not hide uncertainty. Herald uses an intermediate 'Suspected' state for borderline cases. Those cases can trigger additional enrichment such as content inspection and screenshot/OCR. That is the right operational behavior: do not overclaim, gather more evidence, and preserve analyst review for ambiguous cases."
+
+13. "What happens if DNS, WHOIS, Redis, or the browser worker fails?"
+
+Answer:
+"Herald is designed to degrade rather than silently fail. Investigation stages can be marked degraded, Redis queues have ready/processing/delayed/DLQ states, and visual analysis has timeout and circuit-breaker controls. The operator can see queue depth, worker health, browser pressure, and failed jobs. A failed screenshot should not erase the lexical and DNS evidence already collected."
+
+14. "How do you prevent Herald from becoming an SSRF tool?"
+
+Answer:
+"Submitted URLs are treated as hostile. Herald validates targets before fetching or screenshotting them, with controls around URL scheme, hostname, and private-network access. Private targets should only be allowed explicitly for controlled testing. Browser analysis is isolated and timeout-bound."
+
+15. "What is the ROI?"
+
+Answer:
+"ROI comes from earlier detection, fewer manual enrichment steps, and reduced analyst time spent on low-quality alerts. A simple ROI model is: number of suspicious-domain alerts per month multiplied by manual triage minutes saved, plus reduced risk from earlier takedown/blocking. Against IBM's breach-cost backdrop, where average breach costs remain in the multi-million-dollar range and breach lifecycles are still measured in hundreds of days, even modest reductions in time-to-detect and time-to-triage are material."
+
+16. "Can we deploy it on-premises?"
+
+Answer:
+"Yes. The architecture is self-hostable: Python backend, database, Redis queues, model artifacts, workers, and Next.js frontend can run inside controlled infrastructure. That is one of the core design choices: data residency and operational control."
+
+17. "How do you update or retrain the model?"
+
+Answer:
+"The research layer keeps raw, processed, and external datasets separate. The retraining workflow builds datasets, extracts features, trains a model version, evaluates it against holdout and external data, and promotes the artifact into the models directory. The critical control is feature parity: the same production feature extractors used at inference must match the training feature set."
+
+18. "What are the main security risks of Herald itself?"
+
+Answer:
+"The big ones are untrusted URL handling, sensitive evidence storage, model poisoning, and access control. The mitigations are SSRF controls, restricted artifact access, model provenance, audit logging, role-based permissions, and retention policies for screenshots/OCR."
+
+19. "What does the dashboard show that matters to me?"
+
+Answer:
+"For a CISO, the dashboard should show operational trust: detection volume, suspicious and malicious verdicts, confidence distribution, queue backlog, degraded dependencies, dead-letter jobs, and analyst feedback trends. It answers: are we detecting, are analysts overloaded, and is the platform healthy?"
+
+20. "What should I not use Herald for today?"
+
+Answer:
+"I would not position Herald today as a complete SIEM, complete EDR, or full ATT&CK coverage platform. Its strongest current use case is phishing/lookalike-domain detection and evidence-driven investigation. It can integrate with broader SOC tooling, but it should not replace those systems."
+
+
+3. 15-20 MINUTE DEMO SCRIPT
+===========================
+
+Demo goal:
+Show that Herald turns a suspicious domain into an explainable, evidence-backed security decision while giving operators visibility into system health.
+
+Before the demo:
+- Have the frontend running.
+- Have the backend API running if using real mode.
+- Have Redis/database/workers running if showing platform mode.
+- Prepare one known suspicious demo domain.
+- Prepare one benign/whitelisted domain.
+- Prepare one PDF/JSON export artifact.
+- Know whether you are in mock mode or real mode. Do not pretend mock telemetry is production data.
+
+Minute 0-1: Opening hook
+------------------------
+
+Say:
+"Security teams do not fail because they have no alerts. They fail because they have too many alerts without enough evidence. IBM's 2025 breach research still puts the average breach lifecycle at 241 days, and the average breach cost at about 4.44 million dollars globally. The problem I built Herald around is much narrower and very operational: when a suspicious domain appears, how fast can we decide whether it is real phishing, prove why, and give the analyst the next action?"
+
+Avoid:
+- Do not start with architecture diagrams.
+- Do not start with "we use AI."
+- Do not claim Herald replaces the customer's SOC stack.
+
+Minute 1-3: Position the platform
+---------------------------------
+
+Show: Main dashboard or overview page.
+
+Say:
+"Herald is a self-hosted phishing-domain investigation platform. It is designed to sit alongside a SIEM or SOAR. The SIEM can send Herald candidate domains; Herald enriches, scores, screenshots, explains, and returns a verdict plus evidence."
+
+Highlight KPIs:
+- Detection volume.
+- Suspected/malicious count.
+- Confidence score.
+- Queue depth.
+- Worker/dependency health.
+
+Avoid:
+- Do not overfocus on UI animation.
+- Do not call mock numbers live production metrics unless they are real.
+
+Minute 3-5: Ingestion and queue flow
+------------------------------------
+
+Click/show:
+- Scan or investigation submission path if available.
+- Queue/backlog widget.
+- Telemetry feed.
+
+Say:
+"This is the first design principle: intake is decoupled from analysis. A domain can come from an analyst, CT logs, SIEM, SOAR, DNS tooling, or an email-security workflow. Herald normalizes it and puts it into a queue so bursts do not overwhelm the analysis pipeline."
+
+Talk track:
+"A CISO cares about resilience here. If a phishing burst hits, I do not want the API and browser workers fighting each other. The queue gives us back-pressure, retries, and dead-letter handling."
+
+KPI:
+- Queue depth.
+- Processing throughput.
+- Retry/DLQ count.
+
+Minute 5-8: Run or show a suspicious-domain investigation
+---------------------------------------------------------
+
+Click/show:
+- Domain detail page for a suspicious domain, or run a CLI/API investigation beforehand and open the result.
+
+Use example:
+  hdfc-netbanking-verify.top
+
+Say:
+"Here is the analyst view. Herald is not just saying 'bad domain.' It shows the evidence: brand keyword, login/verify wording, suspicious TLD, domain age, TLS/DNS context, and visual indicators when available."
+
+Point out:
+- Verdict.
+- Confidence.
+- Timeline/stages.
+- Risk factors.
+- Screenshot panel.
+- OCR findings.
+- DNS/TLS/WHOIS table.
+
+KPI:
+- Time from submitted to verdict.
+- Number of enrichment steps automated.
+- Whether visual analysis confirmed suspicion.
+
+Avoid:
+- Do not say the model is always right.
+- Do not ignore uncertainty. Say suspected/borderline cases intentionally gather more evidence.
+
+Minute 8-10: Explain ML in CISO language
+----------------------------------------
+
+Click/show:
+- Risk factors or model/explanation panel.
+- If no panel, use the domain detail page evidence.
+
+Say:
+"The ML model is trained on labelled phishing and legitimate domain evidence. It looks at features security teams can audit: brand impersonation, suspicious TLDs, fuzzy spelling, domain age, certificate behavior, DNS posture, login forms, and OCR text. The score is not magic. It is a prioritization signal backed by evidence."
+
+Say:
+"For high-confidence cases, it can move fast. For borderline cases, Herald does the safer thing: it enriches more and labels the case as suspected rather than pretending uncertainty does not exist."
+
+KPI:
+- Precision/false-positive benchmark if prepared.
+- False-negative benchmark if prepared.
+- Holdout dataset size and date.
+
+Avoid:
+- Do not say "AI detects all phishing."
+- Do not say "black box."
+- Do not mention algorithm names unless asked. If asked, say "tree-based ensemble over structured features."
+
+Minute 10-12: Analyst workflow and action
+-----------------------------------------
+
+Click/show:
+- Export JSON/PDF.
+- Feedback/verdict field if available.
+- Whitelist if showing false positive control.
+
+Say:
+"The output is designed for action. An analyst can export evidence, mark a true or false positive, escalate for takedown, or whitelist a known legitimate domain. That is how we reduce repeat work and improve the system over time."
+
+KPI:
+- Time-to-triage.
+- Number of manual lookups replaced.
+- Analyst feedback count.
+
+Avoid:
+- Do not promise automatic takedown unless implemented.
+- Say "can trigger SOAR playbooks" rather than "does everything automatically" unless it does.
+
+Minute 12-14: Operational trust
+-------------------------------
+
+Click/show:
+- Observability page.
+- System health panel.
+- DLQ page.
+- Worker trace page.
+
+Say:
+"The second half of trust is operational. A CISO will ask: how do I know the detection pipeline is healthy? Here we show queue depth, worker liveness, Redis/Postgres health, browser worker pressure, circuit breaker state, and dead-letter jobs."
+
+Say:
+"If visual analysis fails, Herald does not bury the problem. It marks the stage degraded, keeps the evidence it already has, and exposes the failure operationally."
+
+KPI:
+- Queue depth.
+- DLQ size.
+- Worker active/inactive.
+- Browser timeouts/crashes.
+- API readiness.
+
+Minute 14-16: Integration and data residency
+--------------------------------------------
+
+Click/show:
+- API docs or endpoint list.
+- Architecture slide if available.
+
+Say:
+"Herald is API-first and self-hosted. The clean integration pattern is SIEM or SOAR sends a domain to Herald; Herald returns verdict and evidence; the SOC decides whether to block, escalate, or close. Because it runs locally, evidence and screenshots do not need to leave your environment."
+
+KPI:
+- API endpoints.
+- Data location.
+- Export formats.
+- Deployment model.
+
+Avoid:
+- Do not claim every integration exists if you have not built it. Say "API-ready integration path."
+
+Minute 16-18: Close with value and next step
+--------------------------------------------
+
+Say:
+"The value proposition is not 'another alerting tool.' It is faster, more explainable phishing-domain triage. Herald reduces manual enrichment, gives analysts defensible evidence, and gives leadership visibility into detection health. The next step I would recommend is a controlled benchmark on your own historical suspicious-domain cases: measure precision, false positives, time-to-triage, and analyst effort saved."
+
+Close with:
+"If Herald cannot show lower triage time and explainable decisions on your data, it has not earned production trust. That is the bar I would set."
+
+
+4. WEAKEST SPOTS A CISO WILL PROBE
+==================================
+
+Weak spot 1: Exact false-positive and false-negative numbers
+------------------------------------------------------------
+
+Likely probe:
+"What is the false-positive rate on our environment?"
+
+Prepare:
+- A benchmark table.
+- Dataset source.
+- Date range.
+- Number of phishing samples.
+- Number of legitimate samples.
+- Precision, recall, F1, PR AUC.
+- False-positive rate on known legitimate domains.
+- False-negative examples and lessons learned.
+
+Answer stance:
+"Here are the numbers on our benchmark; for production, I would run the same evaluation on your historical cases before tuning thresholds."
+
+Weak spot 2: Dataset provenance and PS-02 credibility
+-----------------------------------------------------
+
+Likely probe:
+"Who labelled this data? How do I know it reflects our threat landscape?"
+
+Prepare:
+- Explain PS-02 source and label definitions.
+- Show raw vs processed dataset separation.
+- Show external validation feeds.
+- Show train/test split methodology.
+- Show no leakage between training and testing.
+
+Answer stance:
+"PS-02 is the seed labelled dataset, not the only evidence. The model must be validated against recent live feeds and customer-specific legitimate domains."
+
+Weak spot 3: Integration maturity
+---------------------------------
+
+Likely probe:
+"Does this integrate with Splunk, Sentinel, QRadar, CrowdStrike, Defender, ServiceNow?"
+
+Prepare:
+- A realistic integration list:
+  - Current: REST API, JSON/PDF export, WebSocket telemetry, Prometheus metrics.
+  - Near-term: SIEM webhook, SOAR playbook connector, ServiceNow ticket creation, DNS blocklist export.
+  - Future: EDR enrichment and email gateway submission.
+
+Answer stance:
+"The architecture is API-first. Some integrations are direct today; named vendor connectors should be treated as roadmap unless already built."
+
+Weak spot 4: MITRE ATT&CK coverage
+----------------------------------
+
+Likely probe:
+"Show me ATT&CK coverage."
+
+Prepare:
+- A small mapping table:
+  - Initial Access: Phishing.
+  - Credential Access: credential harvesting indicators.
+  - Defense Evasion/Masquerading: lookalike domains and brand impersonation.
+  - Command and Control: suspicious newly registered infrastructure, if integrated.
+
+Answer stance:
+"Herald provides depth in phishing infrastructure detection. It is not claiming full ATT&CK coverage across endpoint and lateral movement."
+
+Weak spot 5: Production hardening
+---------------------------------
+
+Likely probe:
+"What happens under load? What happens when Redis fails?"
+
+Prepare:
+- Queue depth limits.
+- Retry/DLQ behavior.
+- Worker liveness.
+- Circuit breaker details.
+- Readiness endpoint.
+- Load-test numbers if possible.
+
+Answer stance:
+"The platform is designed with back-pressure and degraded-state visibility. I would still run customer-scale load tests before production rollout."
+
+Weak spot 6: Access control and auditability
+--------------------------------------------
+
+Likely probe:
+"Who can export evidence? Who can whitelist?"
+
+Prepare:
+- Role model.
+- Audit log plan.
+- Evidence retention plan.
+- Admin-only controls.
+
+Answer stance:
+"The API has authentication; production deployment should enforce role-based control for exports, whitelist, failed-job retry, and user management."
+
+Weak spot 7: Sensitive evidence handling
+----------------------------------------
+
+Likely probe:
+"Screenshots and OCR may contain PII. How are they protected?"
+
+Prepare:
+- Evidence directory location.
+- Encryption-at-rest plan.
+- Retention policy.
+- Redaction plan.
+- Access controls.
+
+Answer stance:
+"Screenshots and OCR are treated as sensitive evidence, not casual logs."
+
+Weak spot 8: ML drift and retraining
+------------------------------------
+
+Likely probe:
+"How do you know the model stays good after attackers change tactics?"
+
+Prepare:
+- Drift metrics.
+- Monthly/quarterly retraining process.
+- Analyst feedback loop.
+- Fresh phishing-feed validation.
+- False-negative review process.
+
+Answer stance:
+"The model needs monitoring and retraining; Herald's telemetry and feedback paths are designed to support that."
+
+Weak spot 9: Demo data versus real data
+---------------------------------------
+
+Likely probe:
+"Is this real?"
+
+Prepare:
+- Be explicit:
+  - "This screen is mock telemetry."
+  - "This domain investigation is real/local."
+  - "This benchmark was run on this dataset."
+
+Answer stance:
+"I will separate demo simulation from measured performance. Mock scenarios demonstrate operations; benchmarks demonstrate detection quality."
+
+Weak spot 10: Scope creep
+-------------------------
+
+Likely probe:
+"Is this a SOC platform, SIEM, SOAR, EDR, UEBA, or threat intel platform?"
+
+Prepare:
+- A crisp scope sentence.
+
+Answer:
+"Herald is a self-hosted phishing-domain intelligence and investigation platform that can integrate into a SOC stack. It is not a SIEM or EDR replacement."
+
+
+5. 60-SECOND OPENING HOOK
+=========================
+
+Say this:
+
+"Most security teams do not have an alert shortage. They have an evidence shortage. A suspicious domain shows up, and an analyst has to ask the same questions every time: is it impersonating us, when was it registered, does it have a certificate, does it host a login page, is there a screenshot, does the page ask for credentials, and is this worth escalating? That manual work is exactly where time disappears.
+
+IBM's 2025 breach research still puts the average breach lifecycle at 241 days, with an average global breach cost of about 4.44 million dollars. Even in 2024, the global breach lifecycle was 258 days. So the CISO problem is not just detection; it is reducing time-to-decision without drowning analysts in false positives.
+
+Herald is built for that specific gap. It takes suspicious domains, enriches them locally, scores them with auditable ML and rules, captures visual evidence, and turns the result into an analyst-ready investigation. The goal is simple: fewer blind alerts, faster triage, and evidence a security team can actually act on."
+
+Optional shorter version:
+
+"Herald is not trying to replace your SIEM. It is trying to remove one painful workflow from your SOC: suspicious-domain triage. It turns a domain from 'maybe bad' into a scored, enriched, screenshot-backed investigation that an analyst can close, escalate, or export."
+
+
+6. HOW TO FRAME THE ML MODEL
+============================
+
+Bad explanation:
+"We trained a classifier using PS-02 data and it predicts phishing."
+
+Better explanation:
+"Herald learns the patterns of phishing infrastructure. It looks at domains the way an experienced analyst would: is a protected brand being impersonated, is the TLD risky, is the domain newly created, does the certificate look fresh, is there a login form, does the page ask for credentials, and does the screenshot/OCR confirm the lure? The model turns those signals into a risk score, and the investigation pipeline turns the score into evidence."
+
+Plain-language model story:
+
+1. What threats does it detect?
+-------------------------------
+
+"It detects suspicious and phishing domains, especially lookalike domains that impersonate banks, government portals, telecom providers, and public-service brands. The strongest use case is early detection of credential-harvesting infrastructure."
+
+2. What is PS-02?
+-----------------
+
+"PS-02 is the labelled problem-statement dataset used as a foundation for training and validation. It contains training examples and shortlisting/evaluation data. In plain English, it gives the model examples of domains and evidence that are phishing-like versus legitimate."
+
+Say carefully:
+"PS-02 is not magic. It is labelled evidence. The model is only as trustworthy as the labels, split strategy, and validation data. That is why I would show separate performance on fresh external feeds and customer-specific legitimate domains."
+
+3. What features does the model use?
+------------------------------------
+
+Say:
+"The model uses features that are understandable to a security team."
+
+Examples:
+- Brand keyword in domain: HDFC, SBI, ICICI, UIDAI, IRCTC.
+- Suspicious action words: login, verify, secure, update, banking.
+- Suspicious TLD: .xyz, .top, .click.
+- Fuzzy typo distance to known brands.
+- Domain length and hyphen patterns.
+- Punycode/homoglyph indicators.
+- DNS and MX/SPF posture.
+- TLS certificate presence, issuer, age, and domain match.
+- WHOIS/domain age.
+- Page content: login forms, password fields, external form action.
+- OCR text: visible credential-harvesting language.
+
+4. How accurate is it?
+----------------------
+
+Say:
+"The right way to discuss accuracy is not one number. I would show precision, recall, false-positive rate, false-negative rate, and performance by data source. Precision tells us how much analyst time we waste. Recall tells us how much phishing we miss. For a CISO, those two numbers matter more than generic accuracy because phishing datasets are imbalanced."
+
+Memorisable answer:
+"I care about precision because false positives burn analyst time, and I care about recall because false negatives become incidents. Herald is designed to tune that tradeoff and use a 'Suspected' state for uncertainty."
+
+5. Can it be audited?
+---------------------
+
+Say:
+"Yes. The model output is tied to evidence. A reviewer can see which features and investigation stages supported the score. The pipeline can export JSON/PDF evidence, and model versions should be tied to dataset versions, feature lists, thresholds, and evaluation results."
+
+6. What happens when the model is uncertain?
+--------------------------------------------
+
+Say:
+"Uncertainty is not hidden. Low-risk domains can be marked clean, high-risk domains can be flagged quickly, and borderline domains are marked suspected and enriched further with content and visual analysis."
+
+7. What should you avoid saying?
+--------------------------------
+
+Avoid:
+- "The AI detects phishing automatically."
+- "The model is fully accurate."
+- "This replaces analysts."
+- "This covers all MITRE ATT&CK."
+- "The dataset proves real-world performance forever."
+
+Say instead:
+- "The model prioritizes and explains suspicious domains."
+- "The analyst gets evidence, not just a score."
+- "We validate against current data and tune thresholds."
+- "This integrates with the SOC stack."
+- "The system is designed for measurable reduction in triage time and false positives."
+
+
+FINAL MEMORISABLE POSITIONING
+=============================
+
+"Herald is a self-hosted, evidence-driven phishing-domain investigation platform. It ingests suspicious domains, extracts auditable risk signals, scores them with ML and rules, enriches borderline cases with DNS/TLS/content/visual evidence, and gives the analyst a defensible verdict and next action. The CISO value is lower triage time, better explainability, local data residency, and a measurable path to reducing false-positive burden."
+
