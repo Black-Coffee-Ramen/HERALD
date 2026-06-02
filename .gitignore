@@ -1,26 +1,20 @@
-# Data and outputs (never commit)
-data/
+# =========================
+
+# Outputs & Generated Files
+
+# =========================
+
 outputs/
+evidence/
+evidences_temp/
+final_evidence/
 
-# Documentation (Only keep the main README)
-*.md
-!README.md
-!doc.md
-!CONTRIBUTING.md
-!LICENSE.md
+# =========================
 
-# PDFs and Reports (never commit)
-*.pdf
-*.report
-*.doc
-*.docx
-*.odt
-*.rtf
-*.tex
-*.ppt
-*.pptx
+# Large Models
 
-# Models (large binary files — track separately with Git LFS if needed)
+# =========================
+
 *.pkl
 *.joblib
 *.h5
@@ -29,86 +23,167 @@ outputs/
 *.pt
 *.pth
 
-# Evidence directories
-evidences_temp/
-final_evidence/
-evidence/
+# =========================
 
 # Secrets
+
+# =========================
+
 .env
+.env.*
 *.key
 *.pem
 *.crt
 
+# =========================
+
 # Python
-__pycache__/
+
+# =========================
+
+**pycache**/
 *.py[cod]
 *.so
+*.pyd
 .Python
 build/
 dist/
 *.egg-info/
 .eggs/
-*.pyd
 
-# Virtual environments
+# =========================
+
+# Virtual Environments
+
+# =========================
+
 venv/
 .venv/
 env/
 ENV/
 
-# IDE
+# =========================
+
+# IDE & Editor Files
+
+# =========================
+
 .DS_Store
 .idea/
 .vscode/
 *.swp
+*.swo
 .gemini/
 *.sublime-*
 
+# =========================
+
 # Logs
+
+# =========================
+
 *.log
 docker_build.log
 *.pid
 
+# =========================
+
 # Jupyter
+
+# =========================
+
 .ipynb_checkpoints/
-*.ipynb
-!*.ipynb  # Uncomment if you want to keep notebooks
+
+# =========================
 
 # Databases
+
+# =========================
+
 *.db
-*.sqlite3
 *.sqlite
+*.sqlite3
 
-# Node
+# =========================
+
+# Node / Frontend
+
+# =========================
+
 node_modules/
-dist/
+frontend/node_modules/
+.next/
+frontend/.next/
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Test coverage
+# =========================
+
+# Test Coverage
+
+# =========================
+
 .coverage
 htmlcov/
 .pytest_cache/
 .tox/
+.mypy_cache/
+.ruff_cache/
 
-# OS generated files
+# =========================
+
+# OS Files
+
+# =========================
+
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Archive files (usually not needed in repos)
+# =========================
+
+# Archives
+
+# =========================
+
 *.zip
 *.tar
 *.tar.gz
 *.rar
 *.7z
 
+# =========================
 
-# Environment and config with secrets
+# Local Configs
+
+# =========================
+
 config.local.*
 *.local.yaml
 *.local.yml
 
-# Text files
-*.txt
+# =========================
+
+# Keep Important Docs
+
+# =========================
+
+!README.md
+!CONTRIBUTING.md
+!LICENSE
+!LICENSE.md
+!docs/**/*.md
+
+# =========================
+
+# Keep Installation Files
+
+# =========================
+
 !requirements*.txt
+!setup.py
+!setup.cfg
+!pyproject.toml
+!Dockerfile
+!docker-compose.yml
