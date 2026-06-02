@@ -46,6 +46,8 @@ def build_parser() -> argparse.ArgumentParser:
     investigate.add_argument("--json", action="store_true", help="Print machine-readable JSON")
     investigate.add_argument("--no-visual", action="store_true", help="Skip screenshot and OCR")
     investigate.add_argument("--allow-private", action="store_true", help="Allow targets that resolve to private/internal IPs")
+    investigate.add_argument("--scorer", choices=["heuristic", "ml", "hybrid"], default="heuristic", help="Detection scoring engine to use")
+    investigate.add_argument("--explain", action="store_true", help="Explain the detection engine reasoning")
 
     analyze = subparsers.add_parser("analyze", help="Run domain intelligence without screenshot/OCR")
     analyze.add_argument("domain")
@@ -65,12 +67,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def run_investigate(args: argparse.Namespace) -> int:
-    pipeline = InvestigationPipeline()
+    pipeline = InvestigationPipeline(scorer_type=args.scorer)
     try:
         result = execute_pipeline(pipeline, args.target, include_visual=not args.no_visual, allow_private=args.allow_private, quiet=args.json)
     except SSRFProtectionError as exc:
         return emit_ssrf_error(exc, args.target, "investigate", as_json=args.json)
-    return emit_result(result.to_dict(), as_json=args.json)
+    return emit_result(result.to_dict(), as_json=args.json, explain=args.explain)
 
 
 def run_analyze(args: argparse.Namespace) -> int:
@@ -110,7 +112,7 @@ def run_report(args: argparse.Namespace) -> int:
     return emit_result(report, as_json=args.json)
 
 
-def emit_result(result: dict, *, as_json: bool) -> int:
+def emit_result(result: dict, *, as_json: bool, explain: bool = False) -> int:
     if as_json:
         console.print_json(json.dumps(result))
         return 0
@@ -163,6 +165,13 @@ def emit_result(result: dict, *, as_json: bool) -> int:
             str(factor.get("detail", "")),
         )
     console.print(risk)
+
+    if explain and result.get("explanations"):
+        explain_table = Table(title="Detection Engine Explanation", show_header=True, header_style="bold magenta", box=box.SIMPLE)
+        explain_table.add_column("Reasoning")
+        for reason in result.get("explanations", []):
+            explain_table.add_row(reason)
+        console.print(explain_table)
 
     stages = Table(title="Lifecycle", show_header=True, header_style="bold cyan", box=box.SIMPLE)
     stages.add_column("Stage")

@@ -11,13 +11,15 @@ from herald.core.security import validate_url_safe
 from herald.investigation.intelligence import collect_dns_intelligence, collect_tls_intelligence
 from herald.investigation.models import InvestigationResult, StageResult, utc_now_iso
 from herald.investigation.persistence import create_evidence_dir, save_investigation
-from herald.investigation.scoring import analyze_lexical, build_summary, combine_scores
+from herald.investigation.scoring import build_summary, combine_scores
+from herald.detection.engine import DetectionEngine, ScorerType
 from herald.investigation.targets import normalize_target
 
 
 class InvestigationPipeline:
-    def __init__(self, evidence_root: str = "evidence"):
+    def __init__(self, evidence_root: str = "evidence", scorer_type: ScorerType = "heuristic"):
         self.evidence_root = evidence_root
+        self.engine = DetectionEngine(scorer_type)
 
     def investigate(self, target: str, *, include_visual: bool = True, allow_private: bool = False) -> InvestigationResult:
         started = time.monotonic()
@@ -39,11 +41,19 @@ class InvestigationPipeline:
                 "private_overrides": private_overrides,
             }
 
-        with self._stage(stages, "Lexical analysis") as stage:
-            lexical = analyze_lexical(domain)
+        with self._stage(stages, "Detection Engine scoring") as stage:
+            detection_res = self.engine.score(domain)
+            lexical = {
+                "score": detection_res.confidence,
+                "suspicious_keywords": detection_res.features.get("suspicious_keywords", []),
+                "risk_factors": [rf.to_dict() for rf in detection_res.risk_factors],
+                "features": detection_res.features,
+                "explanations": detection_res.explanations,
+            }
             stage["details"] = {
-                "score": lexical["score"],
-                "keywords": lexical["suspicious_keywords"],
+                "scorer": detection_res.scorer,
+                "confidence": detection_res.confidence,
+                "verdict": detection_res.verdict,
             }
 
         with self._degraded_stage(stages, errors, "DNS and WHOIS intelligence") as stage:
@@ -80,7 +90,49 @@ class InvestigationPipeline:
                 if not visual.get("success"):
                     raise RuntimeError(visual.get("error", "Screenshot failed to capture"))
 
-        verdict, phishing_score, risk_factors = combine_scores(lexical, dns, tls, visual)
+        heuristic_verdict, heuristic_score, risk_factors = combine_scores(lexical, dns, tls, visual)
+        
+        if self.engine.scorer_type in ("ml", "hybrid"):
+            # Trust the DetectionEngine's sophisticated verdict, but append the
+            # heuristic risk factors for UI explainability.
+            verdict = detection_res.verdict
+            phishing_score = detection_res.confidence
+            
+            # Safety net: If the pipeline caught severe OCR phishing indicators that 
+            # the ML model bypassed (e.g., ISP block pages), override the ML verdict.
+            if visual.get("ocr_findings", {}).get("is_suspicious"):
+                verdict = "Phishing"
+                phishing_score = max(phishing_score, heuristic_score, 0.85)
+                
+            # If the ML model flagged it, ensure we show a Risk Factor for it 
+            # so the user isn't told "No strong indicators observed".
+            if verdict == "Phishing" and phishing_score >= 0.7:
+                if not any(rf.get("name") == "ML High Confidence" for rf in risk_factors):
+                    ml_reasons = []
+                    feats = lexical.get("features", {})
+                    if feats.get("domain_length", 0) > 22:
+                        ml_reasons.append("unusually long length")
+                    if feats.get("num_hyphens", 0) > 0:
+                        ml_reasons.append("hyphenation")
+                    if feats.get("subdomain_count", 0) > 0:
+                        ml_reasons.append("subdomain structure")
+                    if feats.get("digit_ratio", 0) > 0.1:
+                        ml_reasons.append("high digit ratio")
+                    
+                    reason_str = "The ML ensemble flagged anomalous structural patterns"
+                    if ml_reasons:
+                        reason_str += f" ({', '.join(ml_reasons[:3])})"
+                    
+                    risk_factors.insert(0, {
+                        "name": "ML High Confidence",
+                        "severity": "high",
+                        "detail": f"{reason_str}, resulting in a confidence score of {phishing_score:.4f}.",
+                        "score_impact": phishing_score
+                    })
+        else:
+            verdict = heuristic_verdict
+            phishing_score = heuristic_score
+
         elapsed_ms = int((time.monotonic() - started) * 1000)
         result_payload = {
             "trace_id": trace_id,

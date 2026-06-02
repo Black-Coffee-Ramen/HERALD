@@ -1,6 +1,7 @@
 # Web & API Core
 fastapi>=0.100.0
 uvicorn>=0.23.0
+python-multipart>=0.0.6
 slowapi>=0.1.8
 python-dotenv>=1.0.0
 passlib[bcrypt]>=1.7.4

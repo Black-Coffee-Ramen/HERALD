@@ -78,7 +78,6 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    pids_limit: 256
     tmpfs:
       - /tmp:size=512m,mode=1777
     deploy:

@@ -53,6 +53,9 @@ SUSPICIOUS_OCR_PATTERNS = [
     ("expiry date", r"\bexpir(?:y|ation)\s+date\b", 15),
     ("net banking", r"\bnet\s*banking\b", 15),
     ("limited time", r"\b(?:limited\s+time|act\s+now|immediate\s+action)\b", 15),
+    ("suspected phishing", r"\bsuspected\s+phishing\b", 35),
+    ("site dangerous", r"\bfound\s+this\s+site\s+dangerous\b", 35),
+    ("isp blocked", r"\bblocked(?:!|\.)?\s+(?:potentially\s+risky\s+website|due\s+to\s+security)\b", 30),
 ]
 
 

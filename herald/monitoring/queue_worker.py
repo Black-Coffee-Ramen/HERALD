@@ -10,7 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from herald.db.models import DomainScan, SessionLocal, Whitelist
 from herald.monitoring.metrics import Timer, metrics
 from herald.monitoring.redis_queue import DOMAIN_ANALYSIS_QUEUE, VISUAL_ANALYSIS_QUEUE, RedisReliableQueue
-from herald.predict_with_fallback import PhishingPredictorV3
+from herald.detection.engine import DetectionEngine
 from herald.utils.logging_config import setup_logging
 from herald.telemetry.stream import TelemetryStream
 from herald.telemetry.emitter import TelemetryEmitter
@@ -42,12 +42,12 @@ def build_redis_client():
 redis_client = None
 domain_queue = None
 visual_queue = None
-predictor = None
+engine = None
 emitter = None
 
 
 def init_worker():
-    global redis_client, domain_queue, visual_queue, predictor, emitter
+    global redis_client, domain_queue, visual_queue, engine, emitter
     if redis_client is not None:
         return
 
@@ -59,7 +59,7 @@ def init_worker():
 
     domain_queue = RedisReliableQueue(redis_client, DOMAIN_ANALYSIS_QUEUE) if redis_client else None
     visual_queue = RedisReliableQueue(redis_client, VISUAL_ANALYSIS_QUEUE) if redis_client else None
-    predictor = PhishingPredictorV3()
+    engine = DetectionEngine(scorer_type="ml")
 
     # Initialize Telemetry
     telemetry_stream = TelemetryStream(redis_client)
@@ -189,9 +189,16 @@ def process_domain(job_data: dict) -> None:
                 result = {"analysis_type": "Whitelist"}
                 logger.info("domain_whitelisted_intercept", domain=domain)
             else:
-                result = predictor.predict(domain, cse_name=target_cse, include_visual=False)
-                label = result.get("status", "Unknown")
-                confidence = float(result.get("ml_confidence_adjusted", result.get("ml_confidence", 0.0)))
+                detection_res = engine.score(domain)
+                label = detection_res.verdict
+                confidence = detection_res.confidence
+                result = {
+                    "analysis_type": detection_res.model_version,
+                    "ml_confidence": detection_res.features.get("ml_confidence", confidence),
+                    "ml_confidence_adjusted": detection_res.features.get("ml_confidence_adjusted", confidence),
+                    "visual_analysis_required": detection_res.features.get("visual_analysis_required", False),
+                    "target_cse": detection_res.features.get("target_cse") or target_cse,
+                }
 
             upsert_domain_scan(
                 session,

@@ -171,9 +171,11 @@ class PhishingPredictorV3:
                 creation_date = creation_date[0]
             
             if creation_date:
+                if getattr(creation_date, "tzinfo", None) is not None:
+                    creation_date = creation_date.replace(tzinfo=None)
                 age = (datetime.now() - creation_date).days
                 return age
-        except whois.parser.PywhoisError as e:
+        except Exception as e:
             print(f"WHOIS error for {domain}: {e}")
         return -1
 
