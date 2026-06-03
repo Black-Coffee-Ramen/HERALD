@@ -14,7 +14,7 @@ setup(
     description="API-free phishing domain detection for critical infrastructure",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="hhttps://github.com/Black-Coffee-Ramen/HERALD",
+    url="https://github.com/Black-Coffee-Ramen/HERALD",
     license="MIT",
     packages=find_packages(exclude=["tests", "tests.*", "ml", "scripts", "dashboard"]),
     python_requires=">=3.12",
