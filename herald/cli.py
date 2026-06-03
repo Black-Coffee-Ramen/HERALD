@@ -6,6 +6,7 @@ import io
 import json
 import sys
 
+from herald import __version__
 from rich.console import Console
 from rich import box
 from rich.panel import Panel
@@ -39,6 +40,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="herald", description="HERALD phishing investigation CLI")
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command")
 
     investigate = subparsers.add_parser("investigate", help="Run a full URL investigation")
