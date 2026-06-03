@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "herald-investigator"
+version = "0.1.0"
+authors = [
+    { name = "Athiyo Chakma", email = "athiyo22118@iiitd.ac.in" }
+]
+description = "CLI tool for phishing-domain investigation and enrichment"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Security",
+    "Topic :: Internet :: WWW/HTTP",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Developers",
+]
+dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/Black-Coffee-Ramen/HERALD"
+
+[project.scripts]
+herald = "herald.cli:main"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements-runtime.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["herald*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "models/*.joblib"]

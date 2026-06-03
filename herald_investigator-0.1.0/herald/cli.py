@@ -12,7 +12,6 @@ from rich import box
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
-from rich.prompt import Confirm
 
 from herald.core.security import SSRFProtectionError
 from herald.investigation.persistence import find_report
@@ -24,16 +23,7 @@ console = Console()
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
-    args, _ = parser.parse_known_args(argv)
-
-    if args.version:
-        console.print(Panel.fit(
-            f"[bold cyan]HERALD[/bold cyan] v{__version__}\n"
-            "[dim]Heuristic & Ensemble Risk Assessment for Lookalike Domains[/dim]",
-            border_style="cyan",
-            box=box.ROUNDED
-        ))
-        return 0
+    args = parser.parse_args(argv)
 
     if args.command == "investigate":
         return run_investigate(args)
@@ -43,12 +33,6 @@ def main(argv: list[str] | None = None) -> int:
         return run_screenshot(args)
     if args.command == "report":
         return run_report(args)
-    if args.command == "update":
-        return run_update(args)
-    if args.command == "config":
-        return run_config(args)
-    if args.command == "cleanup":
-        return run_cleanup(args)
 
     parser.print_help()
     return 1
@@ -56,7 +40,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="herald", description="HERALD phishing investigation CLI")
-    parser.add_argument("-v", "--version", action="store_true", help="show program's version number and exit")
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command")
 
     investigate = subparsers.add_parser("investigate", help="Run a full URL investigation")
@@ -80,79 +64,17 @@ def build_parser() -> argparse.ArgumentParser:
     report = subparsers.add_parser("report", help="Show a persisted investigation by trace ID")
     report.add_argument("trace_id")
     report.add_argument("--json", action="store_true", help="Print machine-readable JSON")
-    report.add_argument("--open", action="store_true", help="Open the evidence directory in the file explorer")
-
-    update = subparsers.add_parser("update", help="Update HERALD Investigator to the latest version")
-
-    config = subparsers.add_parser("config", help="Manage HERALD configuration")
-    config_sub = config.add_subparsers(dest="config_command", required=True)
-    config_sub.add_parser("show", help="Show current configuration")
-    config_set = config_sub.add_parser("set", help="Set a configuration value")
-    config_set.add_argument("key")
-    config_set.add_argument("value")
-
-    cleanup = subparsers.add_parser("cleanup", help="Clean up old evidence directories")
-    cleanup.add_argument("--older-than", type=int, default=30, help="Delete investigations older than N days (default: 30)")
 
     return parser
 
 
 def run_investigate(args: argparse.Namespace) -> int:
-    import os
-    from herald import config
-    
-    if os.path.isfile(args.target):
-        return run_batch_investigate(args)
-        
     pipeline = InvestigationPipeline(scorer_type=args.scorer)
-    
-    do_visual = not args.no_visual
-    if "screenshot" in config.get_config() and not args.no_visual:
-        do_visual = config.get("screenshot")
-        
     try:
-        result = execute_pipeline(pipeline, args.target, include_visual=do_visual, allow_private=args.allow_private, quiet=args.json)
+        result = execute_pipeline(pipeline, args.target, include_visual=not args.no_visual, allow_private=args.allow_private, quiet=args.json)
     except SSRFProtectionError as exc:
         return emit_ssrf_error(exc, args.target, "investigate", as_json=args.json)
     return emit_result(result.to_dict(), as_json=args.json, explain=args.explain)
-
-def run_batch_investigate(args: argparse.Namespace) -> int:
-    from collections import Counter
-    pipeline = InvestigationPipeline(scorer_type=args.scorer)
-    pipeline.engine.preload()
-    
-    with open(args.target, "r", encoding="utf-8") as f:
-        targets = [line.strip() for line in f if line.strip() and not line.startswith("#")]
-        
-    if not targets:
-        console.print(f"[red]No targets found in {args.target}[/red]")
-        return 1
-
-    console.print(f"[bold cyan]Starting batch investigation of {len(targets)} targets...[/bold cyan]")
-    
-    stats = Counter()
-    
-    with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), transient=True) as progress:
-        task = progress.add_task(f"Processing 0/{len(targets)}...", total=len(targets))
-        
-        for i, target in enumerate(targets, 1):
-            progress.update(task, description=f"Processing {i}/{len(targets)}: {target}")
-            try:
-                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                    res = pipeline.investigate(target, include_visual=not args.no_visual, allow_private=args.allow_private)
-                stats[res.verdict] += 1
-            except Exception:
-                stats["Errors"] += 1
-
-    console.print("\n[bold]Batch Investigation Summary[/bold]")
-    console.print(f"Total processed: {len(targets)}")
-    console.print(f"Phishing (High Risk): [red]{stats.get('Phishing', 0)}[/red]")
-    console.print(f"Suspected: [yellow]{stats.get('Suspected', 0)}[/yellow]")
-    console.print(f"Clean: [green]{stats.get('Clean', 0)}[/green]")
-    if stats.get("Errors"):
-        console.print(f"Errors: [bright_black]{stats['Errors']}[/bright_black]")
-        
-    return 0
 
 
 def run_analyze(args: argparse.Namespace) -> int:
@@ -189,95 +111,7 @@ def run_report(args: argparse.Namespace) -> int:
     if not report:
         console.print(f"[red]No persisted report found for trace ID[/red] {args.trace_id}")
         return 1
-        
-    if args.open:
-        import subprocess
-        import os
-        evidence_dir = report.get("evidence_dir")
-        if evidence_dir and os.path.exists(evidence_dir):
-            if sys.platform == "win32":
-                os.startfile(evidence_dir)
-            elif sys.platform == "darwin":
-                subprocess.Popen(["open", evidence_dir])
-            else:
-                subprocess.Popen(["xdg-open", evidence_dir])
-            console.print(f"[green]Opened evidence directory:[/green] {evidence_dir}")
-            return 0
-            
     return emit_result(report, as_json=args.json)
-
-
-def run_update(args: argparse.Namespace) -> int:
-    import urllib.request
-    import subprocess
-    
-    console.print("[cyan]Checking for HERALD Investigator updates...[/cyan]")
-    try:
-        req = urllib.request.Request("https://pypi.org/pypi/herald-investigator/json")
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            latest_version = data["info"]["version"]
-    except Exception as e:
-        console.print(f"[red]Failed to check PyPI for updates:[/red] {e}")
-        return 1
-
-    console.print(f"Current Version: [bold]{__version__}[/bold]")
-    console.print(f"Latest Version:  [bold green]{latest_version}[/bold green]\n")
-
-    # Basic string comparison (adequate for simple semver)
-    if __version__ == latest_version:
-        console.print("You are already on the latest version!")
-        return 0
-
-    if Confirm.ask("Would you like to install the update now?"):
-        try:
-            subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "herald-investigator"])
-            console.print("\n[bold green]✅ Update successful![/bold green]")
-            return 0
-        except subprocess.CalledProcessError as e:
-            console.print(f"\n[bold red]❌ Update failed:[/bold red] {e}")
-            return 1
-    return 0
-
-
-def run_config(args: argparse.Namespace) -> int:
-    from herald import config
-    if args.config_command == "show":
-        c = config.get_config()
-        if not c:
-            console.print("Configuration is empty.")
-        else:
-            for k, v in c.items():
-                console.print(f"[cyan]{k}[/cyan]: {v}")
-    elif args.config_command == "set":
-        config.set_val(args.key, args.value)
-        console.print(f"[green]Set[/green] {args.key} = {args.value}")
-    return 0
-
-
-def run_cleanup(args: argparse.Namespace) -> int:
-    import time
-    import shutil
-    from pathlib import Path
-    
-    evidence_dir = Path("evidence")
-    if not evidence_dir.exists():
-        console.print("No evidence directory found.")
-        return 0
-        
-    cutoff = time.time() - (args.older_than * 86400)
-    count = 0
-    
-    for path in evidence_dir.iterdir():
-        if path.is_dir():
-            json_file = path / "investigation.json"
-            check_path = json_file if json_file.exists() else path
-            if check_path.stat().st_mtime < cutoff:
-                shutil.rmtree(path)
-                count += 1
-                
-    console.print(f"[green]Cleanup complete.[/green] Deleted {count} old investigations.")
-    return 0
 
 
 def emit_result(result: dict, *, as_json: bool, explain: bool = False) -> int:
