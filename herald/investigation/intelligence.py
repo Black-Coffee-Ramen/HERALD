@@ -7,6 +7,7 @@ from typing import Any
 
 import dns.resolver
 import whois
+import tldextract
 
 
 def _first_datetime(value: Any) -> datetime | None:
@@ -38,7 +39,9 @@ def collect_dns_intelligence(domain: str) -> dict[str, Any]:
     }
 
     try:
-        w = whois.whois(domain)
+        ext = tldextract.extract(domain)
+        registered_domain = f"{ext.domain}.{ext.suffix}" if ext.suffix else domain
+        w = whois.whois(registered_domain)
         created_at = _first_datetime(getattr(w, "creation_date", None))
         result["registrar"] = getattr(w, "registrar", None)
         result["creation_date"] = created_at.isoformat(timespec="seconds") if created_at else None
@@ -48,7 +51,7 @@ def collect_dns_intelligence(domain: str) -> dict[str, Any]:
         if isinstance(nameservers, str):
             nameservers = [nameservers]
         result["nameservers"] = sorted({str(ns).rstrip(".").lower() for ns in nameservers if ns})
-    except whois.parser.PywhoisError as exc:
+    except Exception as exc:
         result["errors"].append(f"whois: {_short_error(exc)}")
 
     resolver = dns.resolver.Resolver()
