@@ -332,18 +332,28 @@ For direct CLI use, `InvestigationPipeline` runs the same logic synchronously wi
 
 ---
 
-## Quick Start
+### Quick Start
 
-The fastest path to a working investigation and no server or database required:
+The fastest path to a working investigation is installing directly from PyPI:
+
+```bash
+pip install herald-investigator
+python -m playwright install chromium
+herald investigate paypal-login-alert.com
+```
+
+#### Running from Source (GitHub)
+If you prefer to clone the repository and run without installing:
 
 ```bash
 git clone https://github.com/Black-Coffee-Ramen/HERALD
 cd HERALD
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements-dev.txt
-pip install -e .
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-runtime.txt
 python -m playwright install chromium
-herald investigate paypal-login-alert.com
+
+# Use the included run.py convenience script
+python run.py investigate paypal-login-alert.com
 ```
 
 Example output:
@@ -404,10 +414,10 @@ Install Python dependencies:
 pip install -r requirements-runtime.txt
 ```
 
-Install HERALD:
+Install HERALD directly from PyPI:
 
 ```bash
-pip install -e .
+pip install herald-investigator
 ```
 
 Install Playwright browsers:
@@ -546,7 +556,7 @@ docker compose up --build
 
 ## CLI Reference
 
-The `herald` console script is installed by `setup.py` as `herald = herald.cli:main`.
+The `herald` console script is installed automatically when using `pip install herald-investigator`. If running from source, use `python run.py` instead of `herald`.
 
 ### `herald investigate`
 
@@ -568,6 +578,10 @@ herald investigate suspicious.example --no-visual
 
 # Permit private/internal IP resolution (metadata endpoints remain blocked)
 herald investigate internal.test --allow-private
+
+# Batch Investigation
+# If the target is a text file, HERALD processes domains line-by-line and outputs an aggregated summary.
+herald investigate domains.txt
 ```
 
 Output includes trace ID, verdict, phishing score, evidence path, risk factor explanations, DNS/TLS intelligence, and pipeline stage lifecycle.
@@ -603,10 +617,36 @@ Screenshot saved to: `evidence/<trace_id>_<domain>/screenshots/homepage.png`
 Loads a previously persisted investigation by trace ID.
 
 ```bash
-herald report <trace_id> [--json]
+herald report <trace_id> [--json] [--open]
 ```
 
 Trace IDs follow the format `trc-<10 hex chars>`. Lookup scans `evidence/<trace_id>*/investigation.json`.
+Passing `--open` will automatically open the evidence directory in your operating system's file explorer.
+
+### `herald update`
+
+Checks PyPI for the latest version of `herald-investigator` and interactively prompts you to upgrade if a newer version is found.
+
+### `herald config`
+
+Manage user-level configuration stored in `~/.herald/config.json`.
+
+```bash
+herald config show
+herald config set screenshot false
+```
+
+### `herald cleanup`
+
+Helps SOC teams manage disk space by deleting older investigation evidence directories.
+
+```bash
+# Deletes investigations older than 30 days (default)
+herald cleanup
+
+# Deletes investigations older than 7 days
+herald cleanup --older-than 7
+```
 
 ### Exit Codes
 
@@ -624,6 +664,7 @@ evidence/
   trc-1a2b3c4d5e_paypal-login-alert.com/
     investigation.json                          ← complete structured result
     report.md                                   ← human-readable Markdown report
+    report.html                                 ← styled, presentation-ready HTML report
     screenshots/
       homepage.png                              ← full-page screenshot
 ```
