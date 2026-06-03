@@ -1283,14 +1283,10 @@ MIT License
 
 <div align="center">
 
-**Athiyo Chakma**
-CSE Undergraduate · IIIT Delhi
-[athiyo22118@iiitd.ac.in](mailto:athiyo22118@iiitd.ac.in)
+# Athiyo Chakma
 
-Built as a phishing investigation, threat-intelligence, and operational security tooling project focused on evidence-first analysis of domains targeting Indian critical infrastructure.
+**CSE Undergraduate · IIIT Delhi**
 
----
-
-*0.981 precision on live PhishTank data · Zero third-party APIs · Fully on-premises*
+📧 <a href="mailto:athiyo22118@iiitd.ac.in">athiyo22118@iiitd.ac.in</a>
 
 </div>
